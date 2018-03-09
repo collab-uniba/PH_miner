@@ -1,5 +1,5 @@
 # PH_miner
-A ProductHunt.com miner in Python 3.
+A [ProductHunt.com](https://www.producthunt.com) miner in Python 3.
 
 ## Setup
 1. Register your app using the [dashboard](https://www.producthunt.com/v1/oauth/applications).
