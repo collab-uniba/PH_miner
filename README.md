@@ -3,7 +3,7 @@ A ProductHunt.com miner in Python 3.
 
 ## Setup
 1. Register your app using the [dashboard](https://www.producthunt.com/v1/oauth/applications).
-2. Create in the root folder the file `credentials.yml` with the following structure:
+2. In the root folder, create the file `credentials.yml` with the following structure:
 
 ```yaml
 api:
