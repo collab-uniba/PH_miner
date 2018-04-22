@@ -39,7 +39,7 @@ class PhMiner:
         if post is not None:
             p = self.session.query(Post).filter_by(id=post.id).one_or_none()
             if p:
-                logger.info("Post %s already present, updating" % post.id)
+                logger.info("Post \'%s\' already present, updating" % post.name)
                 # update
                 p.name = post.name
                 p.tagline = post.tagline
@@ -59,7 +59,7 @@ class PhMiner:
                 p.neutral_reviews_count = post.neutral_reviews_count
                 p.platforms = post.platforms
             else:
-                logger.info("Adding post %s" % post.id)
+                logger.info("Adding post \'%s\'" % post.name)
                 p = Post(post.id, post.name, post.tagline, post.created_at, post.day, post.comments_count,
                          post.votes_count,
                          post.discussion_url, post.redirect_url, post.screenshot_url["850px"], post.maker_inside,
