@@ -141,7 +141,7 @@ class Comment(Base):
     body = Column(UnicodeText, nullable=False)
     created_at = Column(DateTime(timezone=True))
     post_id = Column(BigInteger, nullable=False)
-    parent_comment_id = Column(BigInteger, unique=True)
+    parent_comment_id = Column(BigInteger)
     user_id = Column(BigInteger, nullable=False)
     maker = Column(Boolean)
     child_comments_count = Column(Integer)
