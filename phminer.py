@@ -310,14 +310,14 @@ def load_ph_config():
 
 
 if __name__ == '__main__':
-    logger = logging_config.get_logger(name="ph-miner", console_level=logging.INFO)
+    now = datetime.datetime.now().strftime("%Y-%m-%d")
+    logger = logging_config.get_logger(_dir=now, name="ph-miner", console_level=logging.INFO)
     try:
         logger.info("Loading PH_miner app config")
         client_key, client_secret, redirect_uri, dev_token = load_ph_config()
         logger.info("Creating a new database connection and initializing tables")
         s = setup_db()
-        now = datetime.datetime.now()
-        logger.info("Retrieving daily posts for %s" % now.strftime("%Y-%m-%d"))
+        logger.info("Retrieving daily posts for %s" % now)
         phm = PhMiner(s)
         phm.run(client_key, client_secret, redirect_uri, dev_token)
         logger.info("Done")
