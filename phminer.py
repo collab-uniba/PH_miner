@@ -12,6 +12,8 @@ from ph_py.error import ProductHuntError
 
 config_file = 'credentials.yml'
 
+import datetime
+
 
 class PhMiner:
 
@@ -314,7 +316,8 @@ if __name__ == '__main__':
         client_key, client_secret, redirect_uri, dev_token = load_ph_config()
         logger.info("Creating a new database connection and initializing tables")
         s = setup_db()
-        logger.info("Retrieving daily posts")
+        now = datetime.datetime.now()
+        logger.info("Retrieving daily posts for %s" % now.strftime("%Y-%m-%d"))
         phm = PhMiner(s)
         phm.run(client_key, client_secret, redirect_uri, dev_token)
         logger.info("Done")
