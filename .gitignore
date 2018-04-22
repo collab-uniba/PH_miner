@@ -102,3 +102,4 @@ ENV/
 .idea/
 credentials.yml
 dbsetup.yml
+log/
