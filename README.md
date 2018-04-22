@@ -13,6 +13,15 @@ api:
   dev_token: DEVELOPER_TOKEN
 ```
 
+3. In the folder `db/cfg/` create the file `dbsetup.yml` to setup the connection to the MySQL database:
+```yaml
+mysql:
+    host: 127.0.0.1
+    user: root
+    passwd: *******
+    db: producthunt
+```
+
 ## Resources & Libraries
   * Product Hunt [API](https://api.producthunt.com/v1/docs)
   * [ph_py](https://github.com/anatg/ph_py) - ProductHunt.com API  wrapper in Python
