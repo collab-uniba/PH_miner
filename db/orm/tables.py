@@ -27,7 +27,7 @@ class Post(Base):
     screenshot_url = Column(String(256))
     maker_inside = Column(Boolean, nullable=False)
     hunter_id = Column(BigInteger, nullable=False)
-    description = Column(String(2048), nullable=False)
+    description = Column(String(2048))
     featured = Column(Boolean)
     product_state = Column(String(48))
     reviews_count = Column(Integer, nullable=False)
