@@ -14,6 +14,9 @@ from db.setup import Base
 
 class Post(Base):
     __tablename__ = 'posts'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     id = Column(BigInteger, primary_key=True, autoincrement=False)
     name = Column(String(128), nullable=False)
@@ -79,6 +82,9 @@ class Post(Base):
 
 class RelatedPost(Base):
     __tablename__ = 'related_posts'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
     related_post_id = Column(BigInteger, primary_key=True, autoincrement=False)
@@ -90,6 +96,9 @@ class RelatedPost(Base):
 
 class Topic(Base):
     __tablename__ = 'topics'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     id = Column(BigInteger, primary_key=True, autoincrement=False)
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
@@ -109,6 +118,9 @@ class Topic(Base):
 
 class Badge(Base):
     __tablename__ = 'badges'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     id = Column(BigInteger, primary_key=True, autoincrement=False)
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
@@ -136,6 +148,9 @@ class Badge(Base):
 
 class Comment(Base):
     __tablename__ = 'comments'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     id = Column(BigInteger, primary_key=True, autoincrement=False)
     body = Column(UnicodeText, nullable=False)
@@ -169,6 +184,9 @@ class Comment(Base):
 
 class User(Base):
     __tablename__ = 'users'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     id = Column(BigInteger, primary_key=True, autoincrement=False)
     name = Column(String(128), nullable=False)
@@ -205,6 +223,9 @@ class User(Base):
 
 class Maker(Base):
     __tablename__ = 'makers'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     maker_id = Column(BigInteger, primary_key=True, autoincrement=False)
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
@@ -216,6 +237,9 @@ class Maker(Base):
 
 class Hunter(Base):
     __tablename__ = 'hunters'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     hunter_id = Column(BigInteger, primary_key=True, autoincrement=False)
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
@@ -227,6 +251,9 @@ class Hunter(Base):
 
 class Commenter(Base):
     __tablename__ = 'commenters'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     comment_id = Column(BigInteger, primary_key=True, autoincrement=False)
     commenter_id = Column(BigInteger, primary_key=True, autoincrement=False)
@@ -240,6 +267,9 @@ class Commenter(Base):
 
 class ExternalLink(Base):
     __tablename__ = 'external_links'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     id = Column(BigInteger, primary_key=True, autoincrement=False)
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
@@ -271,6 +301,9 @@ class ExternalLink(Base):
 
 class InstallLink(Base):
     __tablename__ = 'install_links'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
     redirect_url = Column(String(256), primary_key=True)
@@ -294,6 +327,9 @@ class InstallLink(Base):
 
 class RelatedLink(Base):
     __tablename__ = 'related_links'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     id = Column(BigInteger, primary_key=True, autoincrement=False)
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
@@ -319,6 +355,9 @@ class RelatedLink(Base):
 
 class Vote(Base):
     __tablename__ = 'votes'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     id = Column(BigInteger, primary_key=True, autoincrement=False)
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
@@ -342,6 +381,9 @@ class Vote(Base):
 
 class Media(Base):
     __tablename__ = 'media'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     id = Column(BigInteger, primary_key=True, autoincrement=False)
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
@@ -377,6 +419,9 @@ class Media(Base):
 
 class Review(Base):
     __tablename__ = "reviews"
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
 
     reviewer_id = Column(BigInteger, primary_key=True, autoincrement=False)
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
