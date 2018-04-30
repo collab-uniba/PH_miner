@@ -56,6 +56,7 @@ class ScrapyLauncher:
         try:
             urls = self.session.query(Post.discussion_url).all()
             urls = [url[0] + '/reviews' for url in urls]
+            logger.info('Getting or updating reviews for %s posts' % len(urls))
             urls = ','.join(urls)
             os.chdir(os.path.join('scraper', 'review_user_crawler'))
             command = "scrapy crawl producthunt -a browser=Chrome -a start_urls={0}".format(urls).split()
@@ -382,7 +383,7 @@ if __name__ == '__main__':
 
         logger.info("Retrieving daily posts of %s" % now)
         phm = PhMiner(s, phc)
-        #phm.get_daily_posts()
+        phm.get_daily_posts()
         # phm.get_posts_at('2018-04-29')
 
         logger.info("Retrieving reviews for daily posts of %s" % now)
@@ -394,5 +395,3 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         logger.error('Received Ctrl-C or other break signal. Exiting.')
         exit(-1)
-
-# TODO schedule launch from python directly or cronjob??
