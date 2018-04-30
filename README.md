@@ -24,4 +24,5 @@ mysql:
 
 ## Resources & Libraries
   * Product Hunt [API](https://api.producthunt.com/v1/docs)
-  * [ph_py](https://github.com/anatg/ph_py) - ProductHunt.com API  wrapper in Python
+  * [ph_py](https://github.com/anatg/ph_py) - ProductHunt.com API wrapper in Python
+  * [Scrapy](https://scrapy.org) - A scraping and web-crawling framework
