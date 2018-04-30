@@ -1,12 +1,13 @@
+import logging
+import time
 from datetime import datetime
+from logging import log
 
 import scrapy
 from bs4 import BeautifulSoup
-import logging
-from logging import log
 from scrapy.spiders import CrawlSpider
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException, WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait
 
 from review_user_crawler.items import ReviewCrawlerItem
@@ -18,12 +19,10 @@ class ProducthuntSpider(CrawlSpider):
     start_urls = []
     today = datetime.now().strftime("%Y-%m-%d")
 
-    def __init__(self, start_urls=None, browser='PhantomJS', *a, **kw):
+    def __init__(self, start_urls=None, browser='Chrome', *a, **kw):
         super(ProducthuntSpider, self).__init__(*a, **kw)
 
-        if browser == "PhantomJS":
-            self.driver = webdriver.PhantomJS()
-        elif browser == "Chrome":
+        if browser == "Chrome":
             options = webdriver.ChromeOptions()
             options.add_argument('--ignore-certificate-errors')
             options.add_argument("--test-type")
@@ -37,9 +36,18 @@ class ProducthuntSpider(CrawlSpider):
         # explicit wait for page to load
         try:
             WebDriverWait(self.driver, 60)
+            while (scrapy.Selector(text=self.driver.page_source).xpath(
+                    '//div[@class="loadMore_f1388"]/button').extract()):
+                self.driver.find_element_by_css_selector(
+                    '.button_30e5c.fluidSize_c4dc2.mediumSize_c215f.simpleVariant_8a863').click()
+                time.sleep(3)
         except TimeoutException:
             log(logging.ERROR, 'Timeout error waiting for resolution of {0}'.format(response.url))
-            self.driver.save_screenshot('error.png')
+            self.driver.save_screenshot('timeout-error.png')
+            return
+        except WebDriverException as wde:
+            log(level=logging.ERROR, msg=str(wde))
+            self.driver.save_screenshot('webdriver-error.png')
             return
         try:
             overall_score = \
@@ -91,5 +99,3 @@ class ProducthuntSpider(CrawlSpider):
         except NoSuchElementException:
             log(logging.ERROR, 'Unexpected structure error on page %s' % response.url)
             return
-
-# TODO check and click on view more reviews to scrape more
