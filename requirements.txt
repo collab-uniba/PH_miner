@@ -1,6 +1,7 @@
 asn1crypto==0.24.0
 attrs==17.4.0
 Automat==0.6.0
+beautifulsoup4==4.6.0
 certifi==2018.1.18
 cffi==1.11.5
 chardet==3.0.4
@@ -23,6 +24,7 @@ PyYAML==3.12
 queuelib==1.5.0
 requests==2.18.4
 Scrapy==1.5.0
+selenium==3.11.0
 service-identity==17.0.0
 simplejson==3.14.0
 six==1.11.0
