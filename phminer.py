@@ -37,6 +37,7 @@ import logging
 import os
 
 import yaml
+from scrapy import cmdline
 from sqlalchemy.orm import exc
 
 from db import SessionWrapper
@@ -45,24 +46,49 @@ from logger import logging_config
 from ph_py import ProductHuntClient
 from ph_py.error import ProductHuntError
 
-config_file = 'credentials.yml'
 
-import datetime
-
-
-class PhMiner:
+class ScrapyLauncher:
 
     def __init__(self, session):
         self.session = session
 
-    def run(self, key, secret, uri, token):
-        phc = ProductHuntClient(key, secret, uri, token)
+    def get_or_update_posts_reviews(self):
         try:
-            daily_posts = [post.id for post in phc.get_todays_posts()]
+            urls = self.session.query(Post.discussion_url).all()
+            urls = [url[0] + '/reviews' for url in urls]
+            urls = ','.join(urls)
+            os.chdir(os.path.join('scraper', 'review_user_crawler'))
+            command = "scrapy crawl producthunt -a browser=Chrome -a start_urls={0}".format(urls).split()
+            cmdline.execute(command)
+        except Exception as e:
+            logger.error(str(e))
+
+
+class PhMiner:
+
+    def __init__(self, session, phc):
+        self.session = session
+        self.phc = phc
+
+    def get_daily_posts(self):
+        try:
+            daily_posts = [post.id for post in self.phc.get_todays_posts()]
 
             # get details for each post by id
             for post_id in daily_posts:
-                post = phc.get_details_of_post(post_id=post_id)
+                post = self.phc.get_details_of_post(post_id=post_id)
+                self.store(post)
+        except ProductHuntError as e:
+            print(e.error_message)
+            print(e.status_code)
+
+    def get_posts_at(self, day):
+        try:
+            daily_posts = [post.id for post in self.phc.get_specific_days_posts(day)]
+
+            # get details for each post by id
+            for post_id in daily_posts:
+                post = self.phc.get_details_of_post(post_id=post_id)
                 self.store(post)
         except ProductHuntError as e:
             print(e.error_message)
@@ -326,14 +352,14 @@ class PhMiner:
                 self._store_comments(comment.child_comments, post)
 
 
-def setup_db():
-    SessionWrapper.load_config('db/cfg/dbsetup.yml')
+def setup_db(config_file):
+    SessionWrapper.load_config(config_file)
     _session = SessionWrapper.new(init=True)
     assert _session is not None, "Fatal error trying to establish a database connection"
     return _session
 
 
-def load_ph_config():
+def setup_ph_client(config_file):
     with open(os.path.join(os.getcwd(), config_file), 'r') as config:
         cfg = yaml.load(config)
         key = cfg['api']['key']
@@ -341,28 +367,32 @@ def load_ph_config():
         uri = cfg['api']['redirect_uri']
         token = cfg['api']['dev_token']
 
-    return key, secret, uri, token
+    return ProductHuntClient(key, secret, uri, token)
 
 
 if __name__ == '__main__':
     now = datetime.datetime.now().strftime("%Y-%m-%d")
     logger = logging_config.get_logger(_dir=now, name="ph-miner", console_level=logging.INFO)
     try:
-        logger.info("Loading PH_miner app config")
-        client_key, client_secret, redirect_uri, dev_token = load_ph_config()
+        logger.info("Creating Product Hunt app")
+        phc = setup_ph_client('credentials.yml')
+
         logger.info("Creating a new database connection and initializing tables")
-        s = setup_db()
-        logger.info("Retrieving daily posts for %s" % now)
-        phm = PhMiner(s)
-        phm.run(client_key, client_secret, redirect_uri, dev_token)
+        s = setup_db('db/cfg/dbsetup.yml')
+
+        logger.info("Retrieving daily posts of %s" % now)
+        phm = PhMiner(s, phc)
+        #phm.get_daily_posts()
+        # phm.get_posts_at('2018-04-29')
+
+        logger.info("Retrieving reviews for daily posts of %s" % now)
+        launcher = ScrapyLauncher(session=s)
+        launcher.get_or_update_posts_reviews()
+
         logger.info("Done")
         exit(0)
     except KeyboardInterrupt:
         logger.error('Received Ctrl-C or other break signal. Exiting.')
         exit(-1)
 
-# todo
-# * Tables
-# - reviews
-
-# reviews: need a scraper with scrapy and selenium...
+# TODO schedule launch from python directly or cronjob??

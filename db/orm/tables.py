@@ -55,7 +55,7 @@ class Post(Base):
         self.day = day
         self.comments_count = comments_count
         self.votes_count = votes_count
-        self.discussion_url = discussion_url
+        self.discussion_url = discussion_url.split('?')[0]
         self.redirect_url = redirect_url
         self.screenshot_url = screenshot_url
         self.maker_inside = maker_inside
@@ -375,14 +375,39 @@ class Media(Base):
                      media.original_width, media.original_height, media.image_url, media.metadata_url, post_id)
 
 
-# class Review(Base):
-#     __tablename__ = "reviews"
-#
-#     reviewer_id
-#     pros
-#     cons
-#     review_body
-#     review_type # helpful, favorable, critical
-#     helpful_count
-#     comments_count
-#     used_app_for
+class Review(Base):
+    __tablename__ = "reviews"
+
+    reviewer_id = Column(BigInteger, primary_key=True, autoincrement=False)
+    post_id = Column(BigInteger, primary_key=True, autoincrement=False)
+    overall_score = Column(String(16))
+    pros = Column(String(1024))
+    cons = Column(String(1024))
+    body = Column(UnicodeText, nullable=False)
+    sentiment = Column(String(16), nullable=False)
+    helpful_count = Column(Integer)
+    comments_count = Column(Integer)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+
+    def __init__(self, reviewer_id, post_id, created_at, sentiment, overall_score, pros, cons, body, helpful_count,
+                 comments_count):
+        self.reviewer_id = reviewer_id
+        self.post_id = post_id
+        self.sentiment = sentiment
+        self.overall_score = overall_score
+        self.pros = pros
+        self.cons = cons
+        self.body = body
+        self.helpful_count = helpful_count
+        self.comments_count = comments_count
+        if created_at is not None and created_at != 'None':
+            st = parser.parse(created_at)
+            self.created_at = datetime.datetime(st.year, st.month, st.day, st.hour, st.minute, st.second)
+        else:
+            self.created_at = None
+
+    @staticmethod
+    def parse(reviewer_id, post_id, created_at, sentiment, overall_score, pros, cons, body, helpful_count,
+              comments_count):
+        return Review(reviewer_id, post_id, created_at, sentiment, overall_score, pros, cons, body, helpful_count,
+                      comments_count)
