@@ -11,7 +11,6 @@ $ git submodule update
 ## Setup
 1. Register your app using the [dashboard](https://www.producthunt.com/v1/oauth/applications).
 2. In the root folder, create the file `credentials.yml` with the following structure:
-
 ```yaml
 api:
   key: CLIENT_KEY
@@ -32,6 +31,22 @@ mysql:
 4. Install packages via pip:
 ```bash
 $ pip install -r requirements.txt
+```
+
+5. Enable execution via crontab:
+```bash
+$ crontab -e
+```
+Add the following lines. Make sure to enter the correct path.
+```bash
+SHELL=bash
+# New products are uploaded at 12.01 PST (just past midnight, 10am next morning in CET timezone):
+# minute hour day-of-month month day-of-week command
+    30     9       *          *       *        /path/.../to/PH_miner/run.sh /var/log/ph_miner.log 2>&1
+```
+6. Enable the rotation of the log file:
+```bash
+$ sudo ln -s ph_miner.logrotate /etc/logrotate.d/ph_miner
 ```
 
 ## Resources & Libraries
