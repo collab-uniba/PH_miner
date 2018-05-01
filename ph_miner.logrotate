@@ -1,0 +1,13 @@
+/var/log/ph_miner.log {
+	weekly
+    minsize 1M
+    copytruncate
+	notifempty
+	missingok
+	create 644 root root
+	compress
+	compresscmd /usr/bin/bzip2
+	compressext .bz2
+	rotate 1
+	maxage 14
+}
