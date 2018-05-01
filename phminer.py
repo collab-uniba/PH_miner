@@ -35,6 +35,7 @@ __download__ = 'https://github.com/collab-uniba/PH_miner/archive/master.zip'
 
 import logging
 import os
+from time import sleep
 
 import yaml
 from scrapy import cmdline
@@ -71,12 +72,21 @@ class PhMiner:
         self.session = session
         self.phc = phc
 
+    def wait_if_no_rate_limit_remaining(self):
+        """ 900 API calls allowed every 15 minutes """
+        limit_remaining = self.phc.get_rate_limit_remaining()
+        if limit_remaining < 50:
+            logger.info('Going to wait for 15 min to reset rate limit')
+            sleep(15 * 60)
+
     def get_daily_posts(self):
         try:
+            self.wait_if_no_rate_limit_remaining()
             daily_posts = [post.id for post in self.phc.get_todays_posts()]
 
             # get details for each post by id
             for post_id in daily_posts:
+                self.wait_if_no_rate_limit_remaining()
                 post = self.phc.get_details_of_post(post_id=post_id)
                 self.store(post)
         except ProductHuntError as e:
@@ -85,10 +95,12 @@ class PhMiner:
 
     def get_posts_at(self, day):
         try:
+            self.wait_if_no_rate_limit_remaining()
             daily_posts = [post.id for post in self.phc.get_specific_days_posts(day)]
 
             # get details for each post by id
             for post_id in daily_posts:
+                self.wait_if_no_rate_limit_remaining()
                 post = self.phc.get_details_of_post(post_id=post_id)
                 self.store(post)
         except ProductHuntError as e:
