@@ -103,3 +103,4 @@ ENV/
 credentials.yml
 dbsetup.yml
 log/
+.DS_Store
