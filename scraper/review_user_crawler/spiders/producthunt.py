@@ -10,26 +10,69 @@ from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait
 
-from review_user_crawler.items import ReviewCrawlerItem
+from review_user_crawler.items import ReviewItem, UserItem
 
 
-class ProducthuntSpider(CrawlSpider):
-    name = 'producthunt'
+class ReviewSpider(CrawlSpider):
+    name = 'producthunt_reviews'
     allowed_domains = ['producthunt.com']
     start_urls = []
-    today = datetime.now().strftime("%Y-%m-%d")
 
-    def __init__(self, start_urls=None, browser='Chrome', *a, **kw):
-        super(ProducthuntSpider, self).__init__(*a, **kw)
+    def __init__(self, *args, **kwargs):
+        super(ReviewSpider, self).__init__(*args, **kwargs)
 
-        if browser == "Chrome":
-            options = webdriver.ChromeOptions()
-            options.add_argument('--ignore-certificate-errors')
-            options.add_argument("--test-type")
-            options.add_argument("--headless")
-            self.driver = webdriver.Chrome(chrome_options=options)
+        # assumes Chrome web-driver to be installed and on the PATH
+        options = webdriver.ChromeOptions()
+        options.add_argument('--ignore-certificate-errors')
+        options.add_argument("--test-type")
+        options.add_argument("--headless")
+        self.driver = webdriver.Chrome(chrome_options=options)
 
-        self.start_urls = start_urls.split(',')
+        day = kwargs.pop('day', None)
+        if day:
+            self.today = day
+        else:
+            self.today = datetime.now().strftime("%Y-%m-%d")
+
+        start_urls = kwargs.pop('start_urls', [])
+        if start_urls:
+            self.start_urls = start_urls
+        else:
+            self.start_urls = ['https://www.producthunt.com/posts/flow-e-2-0']  # for debugging purposes only
+
+        parsed_user_names = kwargs.pop('parsed_user_names', [])
+        if parsed_user_names:
+            self.parsed_user_names = parsed_user_names
+        else:
+            self.parsed_user_names = ['chrismessina', 'rrhoover']  # for debugging purposes only
+
+    def parse_reviewer_url(self, response):
+        review_item = response.meta.get('review_item')
+        self.driver.get(response.url)
+        # explicit wait for page to load
+        try:
+            WebDriverWait(self.driver, 60)
+        except WebDriverException as wde:
+            log(level=logging.ERROR, msg=str(wde))
+            self.driver.save_screenshot('webdriver-error.png')
+            return
+        try:
+            # _id = scrapy.Selector(text=self.driver.page_source).xpath(
+            #    '//span[@class="font_9d927 white_ce488 small_231df normal_d2e66"]/text()').extract()[1]
+            streak = scrapy.Selector(text=self.driver.page_source).xpath(
+                '//span[@class="streak_f9e9f"]/text()').extract()
+            if streak:
+                streak = ''.join(streak)
+            username = response.url.split('https://www.producthunt.com')[1]
+            collections_followed_count = scrapy.Selector(text=self.driver.page_source).xpath(
+                '//a[@href="%s/followed_collections"]/em/text()' % username).extract()[0]
+
+            review_item['reviewer_badges'] = None
+            review_item['reviewer_daily_upvote_streak'] = streak
+            review_item['reviewer_collections_followed_count'] = collections_followed_count
+            yield review_item
+        except NoSuchElementException as nse:
+            log(level=logging.ERROR, msg=str(nse))
 
     def parse(self, response):
         self.driver.get(response.url)
@@ -60,7 +103,7 @@ class ProducthuntSpider(CrawlSpider):
             review_list = scrapy.Selector(text=self.driver.page_source).xpath('//ul[@class="list_5def0"]/li').extract()
             for review in review_list:
                 soup = BeautifulSoup(review, 'html.parser')
-                review_item = ReviewCrawlerItem()
+                review_item = ReviewItem()
                 review_item['product_score'] = overall_score
                 review_item['post_url'] = response.url.split('/reviews')[0]
 
@@ -69,13 +112,13 @@ class ProducthuntSpider(CrawlSpider):
                 review_item['reviewer_name'] = reviewer.text
                 temp = reviewer.next_element.attrs['href']
                 review_item['reviewer_username'] = temp[2:]
-                review_item['reviewer_url'] = 'https://www.producthunt.com' + temp
+                review_item[
+                    'reviewer_url'] = 'https://www.producthunt.com' + temp
                 try:
                     review_item['reviewer_tagline'] = soup.find('span', {
                         'class': 'font_9d927 grey_bbe43 small_231df normal_d2e66 text_afddf'}).text
                 except AttributeError:
                     review_item['reviewer_tagline'] = ''
-
                 review_item['pros'] = soup.find('div', {'class': 'pros_c0958'}).text[6:].strip()
                 review_item['cons'] = soup.find('div', {'class': 'cons_2aaba'}).text[6:].strip()
                 review_item['body'] = soup.find('div', {'class': 'body_b651b'}).text
@@ -88,14 +131,60 @@ class ProducthuntSpider(CrawlSpider):
                 review_item['date'] = soup.find('time').attrs['datetime']
                 review_item['sentiment'] = soup.find('div', {'class': 'sentiment_1f783'}).attrs['class'][1].split('_')[
                     0]
-                yield review_item
+                yield scrapy.Request(url=review_item['reviewer_url'], callback=self.parse_reviewer_url,
+                                     meta={'review_item': review_item})
+        except NoSuchElementException:
+            log(logging.ERROR, 'Unexpected structure error on page %s' % response.url)
 
-            # matches = re.findall(r'/@\w+', self.driver.page_source, re.MULTILINE)
-            # for m in set(matches):
-            #     review_user = ReviewUserCrawlerItem()
-            #     review_user['reviewer_username'] = m[2:]
-            #     yield review_user
+
+class UserSpider(CrawlSpider):
+    name = 'producthunt_users'
+    allowed_domains = ['producthunt.com']
+    start_urls = []
+
+    def __init__(self, *args, **kwargs):
+        super(UserSpider, self).__init__(*args, **kwargs)
+
+        # assumes Chrome web-driver to be installed and on the PATH
+        options = webdriver.ChromeOptions()
+        options.add_argument('--ignore-certificate-errors')
+        options.add_argument("--test-type")
+        options.add_argument("--headless")
+        self.driver = webdriver.Chrome(chrome_options=options)
+
+        day = kwargs.pop('day', None)
+        if day:
+            self.today = day
+        else:
+            self.today = datetime.now().strftime("%Y-%m-%d")
+
+        start_urls = kwargs.pop('start_urls', [])
+        if start_urls:
+            self.start_urls = start_urls
+        else:
+            self.start_urls = ['https://www.producthunt.com/@rrhoover']  # for debugging purposes only
+
+    def parse(self, response):
+        self.driver.get(response.url)
+        # explicit wait for page to load
+        try:
+            user_item = UserItem()
+            _id = scrapy.Selector(text=self.driver.page_source).xpath(
+                '//span[@class="font_9d927 white_ce488 small_231df normal_d2e66"]/text()').extract()[1]
+            streak = scrapy.Selector(text=self.driver.page_source).xpath(
+                '//span[@class="streak_f9e9f"]/text()').extract()
+            if streak:
+                streak = ''.join(streak)
+            username = response.url.split('https://www.producthunt.com')[1]
+            collections_followed_count = scrapy.Selector(text=self.driver.page_source).xpath(
+                '//a[@href="%s/followed_collections"]/em/text()' % username).extract()[0]
+
+            user_item['id'] = _id
+            user_item['badges'] = None
+            user_item['daily_upvote_streak'] = streak
+            user_item['collections_followed_count'] = collections_followed_count
+
+            yield user_item
 
         except NoSuchElementException:
             log(logging.ERROR, 'Unexpected structure error on page %s' % response.url)
-            return
