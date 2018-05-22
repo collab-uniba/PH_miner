@@ -8,8 +8,25 @@ from sqlalchemy import DateTime
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import UnicodeText
+from sqlalchemy import UniqueConstraint
 
 from db.setup import Base
+
+
+class NewestPost(Base):
+    __tablename__ = 'newest_posts'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
+
+    id = Column(BigInteger, primary_key=True, autoincrement=False)
+    day = Column(String(12), nullable=False)
+    discussion_url = Column(String(512), nullable=False)
+
+    def __init__(self, post_id, day, discussion_url):
+        self.id = post_id
+        self.day = day
+        self.discussion_url = discussion_url
 
 
 class Post(Base):
@@ -23,30 +40,35 @@ class Post(Base):
     tagline = Column(String(512), nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False)
     day = Column(String(12), nullable=False)
-    comments_count = Column(Integer, nullable=False)
-    votes_count = Column(Integer, nullable=False)
-    discussion_url = Column(String(256), nullable=False)
-    redirect_url = Column(String(256))
-    screenshot_url = Column(String(256))
-    maker_inside = Column(Boolean, nullable=False)
+    discussion_url = Column(String(512), nullable=False)
+    redirect_url = Column(String(512))
+    screenshot_url = Column(String(512))
     hunter_id = Column(BigInteger, nullable=False)
     description = Column(String(2048))
+
+    """
+        These are dynamic, get overwritter to the latest value at each run of the script.
+        The history of changes is kept in table post_history
+    """
     featured = Column(Boolean)
+    maker_inside = Column(Boolean, nullable=False)
     product_state = Column(String(48))
+    overall_review_score = Column(String(12))  # updated via scraper
+    comments_count = Column(Integer, nullable=False)
+    votes_count = Column(Integer, nullable=False)
     reviews_count = Column(Integer, nullable=False)
     positive_reviews_count = Column(Integer, nullable=False)
     negative_reviews_count = Column(Integer, nullable=False)
     neutral_reviews_count = Column(Integer, nullable=False)
-
-    ## ??? remove
+    # not used, keep for future reference
     category_id = Column(String(32))
     platforms = Column(String(32))
     exclusive = Column(String(32))
 
     def __init__(self, post_id, name, tagline, created_at, day, comments_count, votes_count, discussion_url,
-                 redirect_url, screenshot_url, maker_inside, hunter_id, description=None, featured=None,
-                 exclusive=None, product_state=None, category_id=None, reviews_count=None, positive_reviews_count=None,
-                 negative_reviews_count=None, neutral_reviews_count=None, platforms=None):
+                 redirect_url, screenshot_url, maker_inside, hunter_id, description, featured=None,
+                 exclusive=None, product_state=None, category_id=None, overall_review_score=None, reviews_count=None,
+                 positive_reviews_count=None, negative_reviews_count=None, neutral_reviews_count=None, platforms=None):
         self.id = post_id
         self.name = name
         self.tagline = tagline
@@ -66,18 +88,70 @@ class Post(Base):
         self.description = description
         self.featured = featured
         self.product_state = product_state
+        self.overall_review_score = overall_review_score
+        self.reviews_count = reviews_count
+        self.positive_reviews_count = positive_reviews_count
+        self.negative_reviews_count = negative_reviews_count
+        self.neutral_reviews_count = neutral_reviews_count
+        # not used, keep for future reference
+        self.category_id = category_id
+        self.platforms = platforms
+        self.exclusive = exclusive
+
+    @staticmethod
+    def parse(post):
+        return Post(post.id, post.name, post.tagline, post.created_at, post.day, post.comments_count, post.votes_count,
+                    post.discussion_url, post.redirect_url, post.screenshot_url, post.maker_inside, post.user.id,
+                    post.description, post.featured, post.exclusive, post.product_state, post.category_id,
+                    None, post.reviews_count, post.positive_reviews_count, post.negative_reviews_count,
+                    post.neutral_reviews_count, post.platforms)
+
+
+class PostHistory(Base):
+    __tablename__ = 'post_history'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
+
+    post_id = Column(BigInteger, primary_key=True)
+    date = Column(DateTime(timezone=False), primary_key=True)
+    UniqueConstraint('post_id', 'date', name='_postid_date_uc_')
+    featured = Column(Boolean)
+    maker_inside = Column(Boolean, nullable=False)
+    product_state = Column(String(48))
+    overall_score = Column(String(12))  # updated via scraper overall_review_score
+    comments_count = Column(Integer, nullable=False)
+    votes_count = Column(Integer, nullable=False)
+    reviews_count = Column(Integer, nullable=False)
+    positive_reviews_count = Column(Integer, nullable=False)
+    negative_reviews_count = Column(Integer, nullable=False)
+    neutral_reviews_count = Column(Integer, nullable=False)
+
+    def __init__(self, post_id, date, featured, maker_inside, product_state, overall_score, comments_count, votes_count,
+                 reviews_count, positive_reviews_count, negative_reviews_count, neutral_reviews_count):
+        self.post_id = post_id
+        if date is not None and date != 'None':
+            st = parser.parse(date)
+            self.date = datetime.datetime(st.year, st.month, st.day, st.hour, st.minute, st.second)
+        else:
+            self.date = None
+        self.featured = featured
+        self.maker_inside = maker_inside
+        self.product_state = product_state
+        self.overall_score = overall_score
+        self.comments_count = comments_count
+        self.votes_count = votes_count
+        self.reviews_count = reviews_count
         self.reviews_count = reviews_count
         self.positive_reviews_count = positive_reviews_count
         self.negative_reviews_count = negative_reviews_count
         self.neutral_reviews_count = neutral_reviews_count
 
-        self.category_id = category_id  # ???
-        self.platforms = platforms  # ???
-        self.exclusive = exclusive  # ???
-
     @staticmethod
-    def parse(user):
-        pass
+    def parse(post, date):
+        return PostHistory(post.id, date, post.featured, post.maker_inside, post.product_state, None,
+                           post.comments_count, post.votes_count, post.reviews_count, post.positive_reviews_count,
+                           post.negative_reviews_count, post.neutral_reviews_count)
 
 
 class RelatedPost(Base):
@@ -193,13 +267,35 @@ class User(Base):
     headline = Column(String(512))
     created_at = Column(DateTime, nullable=False)
     username = Column(String(128), nullable=False, unique=True)
-    image_url = Column(String(256))
-    profile_url = Column(String(256))
+    image_url = Column(String(512))
+    profile_url = Column(String(512))
     twitter_username = Column(String(256))
-    website_url = Column(String(256))
+    website_url = Column(String(512))
+
+    """
+        These are dynamic, get overwritten to the latest value at each run of the script.
+        The history of changes is kept in table post_history
+    """
+    followings_count = Column(Integer, default=0)
+    followers_count = Column(Integer, default=0)
+    hunts_count = Column(Integer, default=0)
+    followed_topics_count = Column(Integer, default=0)
+    apps_made_count = Column(Integer, default=0)
+    upvotes_count = Column(Integer, default=0)
+    collections_made_count = Column(Integer, default=0)
+    collections_followed_count = Column(Integer, default=0)  # updated via scraper
+    badges = Column(String(128))  # updated via scraper, comma-separated list of values
+    daily_upvote_streak = Column(String(16))  # updated via scraper
+
+    # future reference, missing:
+    # followed_topics
+    # ++collections # tabella  need explicit call to collection API
+    # ++collections_followed # tabella  need explicit call to collection API
 
     def __init__(self, user_id, name, headline, created_at, username, image_url, profile_url, twitter_username=None,
-                 website_url=None):
+                 website_url=None, followings_count=0, followers_count=0, hunts_count=0, followed_topics_count=0,
+                 apps_made_count=0, upvotes_count=0, collections_made_count=0, collections_followed_count=0,
+                 badges=None, daily_upvote_streak=None):
         self.id = user_id
         self.name = name
         self.headline = headline
@@ -214,15 +310,77 @@ class User(Base):
         self.twitter_username = twitter_username
         self.website_url = website_url
 
+        self.followings_count = followings_count
+        self.followers_count = followers_count
+        self.hunts_count = hunts_count
+        self.followed_topics_count = followed_topics_count
+        self.apps_made_count = apps_made_count
+        self.upvotes_count = upvotes_count
+        self.badges = badges
+        self.daily_upvote_streak = daily_upvote_streak
+        self.collections_made_count = collections_made_count
+        self.collections_followed_count = collections_followed_count
+
     @staticmethod
     def parse(user):
         return User(user.id, user.name, user.headline, user.created_at, user.username, user.image_url["220px"],
-                    user.profile_url,
-                    user.twitter_username, user.website_url)
+                    user.profile_url, user.twitter_username, user.website_url, user.followings_count,
+                    user.followers_count, user.posts_count, user.followed_topics_count,
+                    user.maker_of_count, user.votes_count, user.collections_count,
+                    collections_followed_count=0, badges=None, daily_upvote_streak=None)
 
 
-class Maker(Base):
-    __tablename__ = 'makers'
+class UserHistory(Base):
+    __tablename__ = 'user_history'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
+
+    user_id = Column(BigInteger, primary_key=True)
+    date = Column(DateTime(timezone=False), primary_key=True)
+    UniqueConstraint('user_id', 'date', name='_userid_date_uc_')
+    followings_count = Column(Integer, default=0)
+    followers_count = Column(Integer, default=0)
+    hunts_count = Column(Integer, default=0)
+    followed_topics_count = Column(Integer, default=0)
+    apps_made_count = Column(Integer, default=0)
+    upvotes_count = Column(Integer, default=0)
+    collections_made_count = Column(Integer, default=0)
+    collections_followed_count = Column(Integer, default=0)  # updated via scraper
+    badges = Column(String(128))  # updated via scraper
+    daily_upvote_streak = Column(String(16))  # updated via scraper
+
+    def __init__(self, user_id, date, followings_count=0, followers_count=0, hunts_count=0, followed_topics_count=0,
+                 apps_made_count=0, upvotes_count=0, collections_made_count=0, collections_followed_count=0,
+                 badges=None, daily_upvote_streak=None):
+        self.user_id = user_id
+        if date is not None and date != 'None':
+            st = parser.parse(date)
+            self.date = datetime.datetime(st.year, st.month, st.day)
+        else:
+            self.date = None
+
+        self.followings_count = followings_count
+        self.followers_count = followers_count
+        self.hunts_count = hunts_count
+        self.followed_topics_count = followed_topics_count
+        self.apps_made_count = apps_made_count
+        self.upvotes_count = upvotes_count
+
+        self.badges = badges
+        self.daily_upvote_streak = daily_upvote_streak
+        self.collections_made_count = collections_made_count
+        self.collections_followed_count = collections_followed_count
+
+    @staticmethod
+    def parse(user, date):
+        return UserHistory(user.id, date, user.followings_count, user.followers_count, user.posts_count,
+                           user.followed_topics_count, user.maker_of_count, user.votes_count, user.collections_count,
+                           collections_followed_count=0, badges=None, daily_upvote_streak=None)
+
+
+class Apps(Base):
+    __tablename__ = 'apps'
     __table_args__ = {
         'mysql_row_format': 'DYNAMIC'
     }
@@ -235,8 +393,8 @@ class Maker(Base):
         self.post_id = post_id
 
 
-class Hunter(Base):
-    __tablename__ = 'hunters'
+class Hunts(Base):
+    __tablename__ = 'hunts'
     __table_args__ = {
         'mysql_row_format': 'DYNAMIC'
     }
@@ -273,11 +431,11 @@ class ExternalLink(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=False)
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
-    url = Column(String(256), nullable=False)
-    title = Column(String(128), nullable=False)
-    source = Column(String(64))
-    author = Column(String(64))
-    headline = Column(String(512))
+    url = Column(String(512), nullable=False)
+    title = Column(String(256), nullable=False)
+    source = Column(String(128))
+    author = Column(String(128))
+    headline = Column(UnicodeText)
     favicon_image_uuid = Column(String(128))
     link_type = Column(String(64))
 
@@ -306,7 +464,7 @@ class InstallLink(Base):
     }
 
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
-    redirect_url = Column(String(256), primary_key=True)
+    redirect_url = Column(String(512), primary_key=True)
     platform = Column(String(128))  ## ?
     created_at = Column(DateTime(timezone=True))
 
@@ -333,7 +491,7 @@ class RelatedLink(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=False)
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
-    url = Column(String(256))
+    url = Column(String(512))
     title = Column(String(256))
     domain = Column(String(256))  ##??
     favicon = Column(String(256))  ##?
@@ -376,7 +534,8 @@ class Vote(Base):
 
     @staticmethod
     def parse(vote, post_id):
-        return Vote(vote.id, vote.created_at, vote.user.id, post_id)
+        assert post_id == vote["post_id"], "Post id mismatch in vote parsing"
+        return Vote(vote["id"], vote["created_at"], vote["user_id"], post_id)
 
 
 class Media(Base):
@@ -394,8 +553,8 @@ class Media(Base):
     video_id = Column(String(64))
     original_width = Column(Integer)
     original_height = Column(Integer)
-    image_url = Column(String(256))
-    metadata_url = Column(String(256))
+    image_url = Column(String(512))
+    metadata_url = Column(String(512))
 
     def __init__(self, media_id, kindle_asin, media_type, priority, platform, video_id, original_width,
                  original_height, image_url, metadata_url, post_id):
@@ -456,3 +615,103 @@ class Review(Base):
               comments_count):
         return Review(reviewer_id, post_id, created_at, sentiment, overall_score, pros, cons, body, helpful_count,
                       comments_count)
+
+
+class UserFollowingList(Base):
+    __tablename__ = "user_following_list"
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
+
+    user_id = Column(BigInteger, primary_key=True)
+    following_id = Column(BigInteger, primary_key=True)
+    date = Column(DateTime(timezone=False), nullable=False)
+
+    def __init__(self, user_id, following_id, date):
+        self.user_id = user_id
+        self.following_id = following_id
+        if date:
+            st = parser.parse(date)
+            self.date = datetime.datetime(st.year, st.month, st.day, st.hour, st.minute, st.second)
+        else:
+            self.date = None
+
+
+class UserFollowerList(Base):
+    __tablename__ = "user_follower_list"
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
+
+    user_id = Column(BigInteger, primary_key=True)
+    follower_id = Column(BigInteger, primary_key=True)
+    date = Column(DateTime(timezone=False), nullable=False)
+
+    def __init__(self, user_id, follower_id, date):
+        self.user_id = user_id
+        self.follower_id = follower_id
+        if date:
+            st = parser.parse(date)
+            self.date = datetime.datetime(st.year, st.month, st.day, st.hour, st.minute, st.second)
+        else:
+            self.date = None
+
+
+class UserVoteList(Base):
+    __tablename__ = "user_vote_list"
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
+
+    user_id = Column(BigInteger, primary_key=True)
+    post_id = Column(BigInteger, primary_key=True)
+    date = Column(DateTime(timezone=False), nullable=False)
+
+    def __init__(self, user_id, post_id, date):
+        self.user_id = user_id
+        self.post_id = post_id
+        if date:
+            st = parser.parse(date)
+            self.date = datetime.datetime(st.year, st.month, st.day, st.hour, st.minute, st.second)
+        else:
+            self.date = None
+
+
+class UserHuntsList(Base):
+    __tablename__ = "user_hunts_list"
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
+
+    user_id = Column(BigInteger, primary_key=True)
+    post_id = Column(BigInteger, primary_key=True)
+    date = Column(DateTime(timezone=False), nullable=False)
+
+    def __init__(self, user_id, post_id, date):
+        self.user_id = user_id
+        self.post_id = post_id
+        if date:
+            st = parser.parse(date)
+            self.date = datetime.datetime(st.year, st.month, st.day, st.hour, st.minute, st.second)
+        else:
+            self.date = None
+
+
+class UserAppsMadeList(Base):
+    __tablename__ = "user_apps_made_list"
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
+
+    user_id = Column(BigInteger, primary_key=True)
+    post_id = Column(BigInteger, primary_key=True)
+    date = Column(DateTime(timezone=False), nullable=False)
+
+    def __init__(self, user_id, post_id, date):
+        self.user_id = user_id
+        self.post_id = post_id
+        if date:
+            st = parser.parse(date)
+            self.date = datetime.datetime(st.year, st.month, st.day, st.hour, st.minute, st.second)
+        else:
+            self.date = None
