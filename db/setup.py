@@ -11,7 +11,7 @@ Base = declarative_base()
 
 
 class SessionWrapper:
-    log = logging.getLogger(__name__)
+    log = logging.getLogger('ph_py')
     proto = 'mysql'
     server = None
     db_name = None
@@ -36,14 +36,14 @@ class SessionWrapper:
                                                                              SessionWrapper.db_name),
                                pool_recycle=3600)
         if not database_exists(engine.url):
-            SessionWrapper.log.info("Database %s created" % SessionWrapper.db_name)
+            SessionWrapper.log.debug("Database %s created" % SessionWrapper.db_name)
             create_database(engine.url, encoding='utf8mb4')
         SessionWrapper.log.debug(
             msg='Connection established to {0}@{1}.'.format(SessionWrapper.proto, SessionWrapper.server))
 
         if init:
             SessionWrapper.__init_db(engine)
-            SessionWrapper.log.info(msg='Structure for database %s created.' % SessionWrapper.db_name)
+            SessionWrapper.log.debug(msg='Structure for database %s created.' % SessionWrapper.db_name)
 
         _session = sessionmaker(engine)
         return _session()
