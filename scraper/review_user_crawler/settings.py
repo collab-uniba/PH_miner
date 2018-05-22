@@ -14,9 +14,11 @@ BOT_NAME = 'review_user_crawler'
 SPIDER_MODULES = ['review_user_crawler.spiders']
 NEWSPIDER_MODULE = 'review_user_crawler.spiders'
 
+# set log level project-wide
+LOG_LEVEL = 'INFO'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_2) AppleWebKit/604.4.7 (KHTML, like Gecko) Version/11.0.2 Safari/604.4.7'
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
@@ -65,6 +67,7 @@ CONCURRENT_REQUESTS_PER_IP = 1
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
+    'review_user_crawler.pipelines.UserCrawlerPipeline': 200,
     'review_user_crawler.pipelines.ReviewUserCrawlerPipeline': 300,
     'review_user_crawler.pipelines.ReviewCrawlerPipeline': 400,
 }
