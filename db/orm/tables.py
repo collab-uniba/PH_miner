@@ -19,7 +19,7 @@ class NewestPost(Base):
         'mysql_row_format': 'DYNAMIC'
     }
 
-    id = Column(BigInteger, primary_key=True, autoincrement=False)
+    post_id = Column(BigInteger, primary_key=True)
     day = Column(String(12), nullable=False)
     discussion_url = Column(String(512), nullable=False)
 
@@ -152,6 +152,22 @@ class PostHistory(Base):
         return PostHistory(post.id, date, post.featured, post.maker_inside, post.product_state, None,
                            post.comments_count, post.votes_count, post.reviews_count, post.positive_reviews_count,
                            post.negative_reviews_count, post.neutral_reviews_count)
+
+
+class PostSocialLinks(Base):
+    __tablename__ = 'post_social_links'
+    __table_args__ = {
+        'mysql_row_format': 'DYNAMIC'
+    }
+
+    post_id = Column(BigInteger, primary_key=True)
+    site = Column(String(64), primary_key=True)
+    url = Column(String(512), nullable=False)
+
+    def __init__(self, post_id, site, url):
+        self.post_id = post_id
+        self.site = site
+        self.url = url
 
 
 class RelatedPost(Base):

@@ -43,6 +43,7 @@ from getopt import getopt, GetoptError
 
 import yaml
 from bs4 import BeautifulSoup
+from pytz import timezone
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 from selenium import webdriver
@@ -109,9 +110,11 @@ class PhMiner:
         self.driver = webdriver.Chrome(chrome_options=options)
 
     def get_newest_posts(self):
-        url = 'https://www.producthunt.com/newest'
         discussion_urls = list()
         slugs = list()
+        post_ids = list()
+
+        url = 'https://www.producthunt.com/newest'
         self.driver.get(url)
         # explicit wait for page to load
         try:
@@ -127,6 +130,7 @@ class PhMiner:
                     discussion_urls.append('https://www.producthunt.com/posts' + extract)
                 except IndexError:
                     pass  # ignore promoted posts
+
             i = -1
             for slug in slugs:
                 i += 1
@@ -138,12 +142,35 @@ class PhMiner:
                     # if post_id:
                     if res:
                         post_id = int(res[0])
-                        np = self.session.query(NewestPost).filter_by(id=post_id, created_at=self.today).one_or_none()
+                        post_ids.append(post_id)
+                        np = self.session.query(NewestPost).filter_by(post_id=post_id, day=self.today).one_or_none()
                         if not np:
                             np = NewestPost(post_id, self.today, discussion_urls[i])
                             self.session.add(np)
                 except IndexError as ie:
                     logger.error(str(ie))
+                except Exception as e:
+                    logger.error(str(e))
+            self.session.commit()
+
+            # scrape social media links for the post
+            i = -1
+            for url in discussion_urls:
+                i += 1
+                self.driver.get(url)
+                WebDriverWait(self.driver, 120)
+                time.sleep(10)
+                bs = BeautifulSoup(self.driver.page_source, "lxml")
+                posts = bs.find_all("a", {"class": "item_6443c"})
+                logger.info("Retrieving social link for post \'%s\'" % slugs[i])
+                for p in posts:
+                    title = p['title']
+                    href = p['href']
+                    link = self.session.query(PostSocialLinks).filter_by(post_id=post_ids[i],
+                                                                         site=title).one_or_none()
+                    if not link:
+                        link = PostSocialLinks(post_ids[i], title, href)
+                        self.session.add(link)
             self.session.commit()
         except TimeoutException:
             logger.error('Timeout error waiting for resolution of {0}'.format(url))
@@ -196,7 +223,7 @@ class PhMiner:
         if not self.user_details_once_a_day:  # [self.today]:
             self.user_details_once_a_day = set()  # [self.today] = set()
         # today's newest posts...
-        todays_newest_posts = self.session.query(NewestPost.id).filter_by(day=self.today).all()
+        todays_newest_posts = self.session.query(NewestPost.post_id).filter_by(day=self.today).all()
         # ... that are *NOT* featured, i.e., not in Post table
         todays_featured = self.session.query(Post.id).filter_by(day=self.today).all()
         # get details for each non-featured today's post
@@ -667,7 +694,7 @@ def setup_ph_client(config_file):
 
 
 if __name__ == '__main__':
-    now = datetime.datetime.now().strftime("%Y-%m-%d")
+    now = datetime.datetime.now(timezone('US/Pacific')).strftime("%Y-%m-%d")
     now_dt = datetime.datetime.strptime(now, '%Y-%m-%d').date()
     day = None
     day_dt = None
