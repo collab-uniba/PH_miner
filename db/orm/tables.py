@@ -19,12 +19,12 @@ class NewestPost(Base):
         'mysql_row_format': 'DYNAMIC'
     }
 
-    post_id = Column(BigInteger, primary_key=True)
+    post_id = Column(BigInteger, primary_key=True, autoincrement=False)
     day = Column(String(12), nullable=False)
     discussion_url = Column(String(512), nullable=False)
 
     def __init__(self, post_id, day, discussion_url):
-        self.id = post_id
+        self.post_id = post_id
         self.day = day
         self.discussion_url = discussion_url
 
