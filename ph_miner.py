@@ -109,6 +109,7 @@ class PhMiner:
         options.add_argument('--ignore-certificate-errors')
         options.add_argument("--test-type")
         options.add_argument("--headless")
+        options.add_argument("--no-sandbox")  #  for ubuntu compatibility
         self.driver = webdriver.Chrome(chrome_options=options)
 
     def get_newest_posts(self):

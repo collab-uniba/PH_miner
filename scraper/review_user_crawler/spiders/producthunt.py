@@ -26,6 +26,7 @@ class ReviewSpider(CrawlSpider):
         options.add_argument('--ignore-certificate-errors')
         options.add_argument("--test-type")
         options.add_argument("--headless")
+        options.add_argument("--no-sandbox")  # for ubuntu compatibility
         self.driver = webdriver.Chrome(chrome_options=options)
 
         day = kwargs.pop('day', None)
@@ -151,6 +152,7 @@ class UserSpider(CrawlSpider):
         options.add_argument('--ignore-certificate-errors')
         options.add_argument("--test-type")
         options.add_argument("--headless")
+        options.add_argument("--no-sandbox")  # for ubuntu compatibility
         self.driver = webdriver.Chrome(chrome_options=options)
 
         day = kwargs.pop('day', None)
