@@ -11,19 +11,19 @@ from time import sleep
 from sqlalchemy.orm import exc
 
 from db.orm.tables import *
+from ph_miner import setup_db, setup_ph_client
 from ph_py.error import ProductHuntError
-from phminer import setup_db, setup_ph_client
 from .items import ReviewItem, UserItem
 
 db_config_file = '../../db/cfg/dbsetup.yml'
 ph_config_file = '../../credentials.yml'
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('scrapy_pipes')
 
 
 def wait_if_no_rate_limit_remaining(ph_client):
     """ 900 API calls allowed every 15 minutes """
     limit_remaining, reset = ph_client.get_rate_limit_remaining()
-    if limit_remaining < 10:
+    if limit_remaining < 50:
         logger.log(level=logging.INFO, msg='Going to wait for %s min to reset rate limit' % int(reset / 60))
         sleep(reset / 60)
     logger.log(level=logging.DEBUG, msg="API calls remaining %s (%s min to reset)" % (limit_remaining, int(reset / 60)))
@@ -72,8 +72,8 @@ class ReviewCrawlerPipeline(object):
                             p.overall_review_score = item['product_score']
                             self.session.add(p)
                         except exc.NoResultFound:
-                            logger.log(logging.ERROR, "No result found querying post \'%s\' (%s)" % (post.name,
-                                                                                                     post.id))
+                            logger.log(logging.ERROR, msg="No result found querying post \'%s\' (%s)" % (post.name,
+                                                                                                         post.id))
                         # if we're scraping a post reviews, then the post history for today must be in the db
                         try:
                             ph = self.session.query(PostHistory).filter_by(post_id=post.id, date=self.today).one()
@@ -89,9 +89,11 @@ class ReviewCrawlerPipeline(object):
                         logger.log(logging.ERROR,
                                    "No post found in database with url \'%s\', updating" % item['post_url'])
                 except exc.NoResultFound as nrfe:
-                    logger.log(level=logging.ERROR, msg=str(nrfe))
+                    logger.log(level=logging.ERROR, msg="NoResultFound error in ReviewCrawlerPipeline._store_item()\n" +
+                                                        str(nrfe))
         except ProductHuntError as phe:
-            logger.log(level=logging.ERROR, msg=str(phe))
+            logger.log(level=logging.ERROR,
+                       msg="ProductHunt API error in ReviewCrawlerPipeline._store_item()\n" + str(phe))
 
     def process_item(self, item, spider):
         if isinstance(item, ReviewItem):
@@ -228,7 +230,7 @@ class ReviewUserCrawlerPipeline(object):
 
     """
     In the future, when API support reviews, this will have to be moved to
-    phminer.py file and the duplicate _store_* methods above will be useless.
+    ph_miner.py file and the duplicate _store_* methods above will be useless.
     """
 
     def _store_reviewer(self, item, spider):
@@ -240,7 +242,7 @@ class ReviewUserCrawlerPipeline(object):
                 reviewer = self.ph_client.get_details_of_user(username)
                 if reviewer:
                     # update user
-                    spider.parsed_user_names.append(username)
+                    spider.parsed_user_names.add(username)
                     user, uh = self._store_user(reviewer)
                     # update elements of the user that can only be accessed through the scraper
                     user.badges = item['reviewer_badges']
