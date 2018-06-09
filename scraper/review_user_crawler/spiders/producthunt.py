@@ -1,7 +1,6 @@
 import logging
 import time
 from datetime import datetime
-from logging import log
 
 import scrapy
 from bs4 import BeautifulSoup
@@ -17,6 +16,7 @@ class ReviewSpider(CrawlSpider):
     name = 'producthunt_reviews'
     allowed_domains = ['producthunt.com']
     start_urls = []
+    logger = logging.getLogger('scrapy')
 
     def __init__(self, *args, **kwargs):
         super(ReviewSpider, self).__init__(*args, **kwargs)
@@ -44,7 +44,7 @@ class ReviewSpider(CrawlSpider):
         if parsed_user_names:
             self.parsed_user_names = parsed_user_names
         else:
-            self.parsed_user_names = ['chrismessina', 'rrhoover']  # for debugging purposes only
+            self.parsed_user_names = set(['chrismessina', 'rrhoover'])  # for debugging purposes only
 
     def parse_reviewer_url(self, response):
         review_item = response.meta.get('review_item')
@@ -53,7 +53,7 @@ class ReviewSpider(CrawlSpider):
         try:
             WebDriverWait(self.driver, 60)
         except WebDriverException as wde:
-            log(level=logging.ERROR, msg=str(wde))
+            self.logger.log(level=logging.ERROR, msg="Error on WebDriverWait\n" + str(wde))
             self.driver.save_screenshot('webdriver-error.png')
             return
         try:
@@ -72,7 +72,7 @@ class ReviewSpider(CrawlSpider):
             review_item['reviewer_collections_followed_count'] = collections_followed_count
             yield review_item
         except NoSuchElementException as nse:
-            log(level=logging.ERROR, msg=str(nse))
+            self.logger.log(level=logging.ERROR, msg="NoSuchElementException error scraping reviewer info\n" + str(nse))
 
     def parse(self, response):
         self.driver.get(response.url)
@@ -85,18 +85,18 @@ class ReviewSpider(CrawlSpider):
                     '.button_30e5c.fluidSize_c4dc2.mediumSize_c215f.simpleVariant_8a863').click()
                 time.sleep(3)
         except TimeoutException:
-            log(logging.ERROR, 'Timeout error waiting for resolution of {0}'.format(response.url))
+            self.logger.log(logging.ERROR, msg='Timeout error waiting for resolution of {0}'.format(response.url))
             self.driver.save_screenshot('timeout-error.png')
             return
         except WebDriverException as wde:
-            log(level=logging.ERROR, msg=str(wde))
+            self.logger.log(level=logging.ERROR, msg=str("Error on WebDriverWait\n" + str(wde)))
             self.driver.save_screenshot('webdriver-error.png')
             return
         try:
             overall_score = \
                 scrapy.Selector(text=self.driver.page_source) \
                     .xpath(
-                    '//span[@class="font_9d927 black_476ed small_231df normal_d2e66 numericalRating_42e93"]/text()') \
+                    '//span[@class="font_9d927 black_476ed small_231df normal_d2e66 numericalRating_42e93 lineHeight_042f1 underline_57d3c"]/text()') \
                     .extract()
             overall_score = ''.join(overall_score)
 
@@ -108,7 +108,8 @@ class ReviewSpider(CrawlSpider):
                 review_item['post_url'] = response.url.split('/reviews')[0]
 
                 reviewer = soup.find('span',
-                                     {'class': 'font_9d927 black_476ed small_231df semiBold_e201b headline_8ed42'})
+                                     {
+                                         'class': 'font_9d927 black_476ed small_231df semiBold_e201b headline_8ed42 lineHeight_042f1 underline_57d3c'})
                 review_item['reviewer_name'] = reviewer.text
                 temp = reviewer.next_element.attrs['href']
                 review_item['reviewer_username'] = temp[2:]
@@ -116,25 +117,25 @@ class ReviewSpider(CrawlSpider):
                     'reviewer_url'] = 'https://www.producthunt.com' + temp
                 try:
                     review_item['reviewer_tagline'] = soup.find('span', {
-                        'class': 'font_9d927 grey_bbe43 small_231df normal_d2e66 text_afddf'}).text
+                        'class': 'font_9d927 grey_bbe43 small_231df normal_d2e66 text_afddf lineHeight_042f1 underline_57d3c'}).text
                 except AttributeError:
                     review_item['reviewer_tagline'] = ''
                 review_item['pros'] = soup.find('div', {'class': 'pros_c0958'}).text[6:].strip()
                 review_item['cons'] = soup.find('div', {'class': 'cons_2aaba'}).text[6:].strip()
                 review_item['body'] = soup.find('div', {'class': 'body_b651b'}).text
                 review_item['helpful_count'] = soup.find('span', {
-                    'class': 'font_9d927 xSmall_1a46e semiBold_e201b buttonContainer_b6eb3 uppercase_a49b4'}).text.split()[
+                    'class': 'font_9d927 xSmall_1a46e semiBold_e201b buttonContainer_b6eb3 lineHeight_042f1 underline_57d3c uppercase_a49b4'}).text.split()[
                     2]
                 review_item['comments_count'] = soup.find('a', {
-                    'class': 'font_9d927 grey_bbe43 xSmall_1a46e semiBold_e201b uppercase_a49b4'}).text.split('(')[1][
-                                                :1]
+                    'class': 'font_9d927 grey_bbe43 xSmall_1a46e semiBold_e201b lineHeight_042f1 underline_57d3c uppercase_a49b4'}).text.split(
+                    '(')[1][:1]
                 review_item['date'] = soup.find('time').attrs['datetime']
                 review_item['sentiment'] = soup.find('div', {'class': 'sentiment_1f783'}).attrs['class'][1].split('_')[
                     0]
                 yield scrapy.Request(url=review_item['reviewer_url'], callback=self.parse_reviewer_url,
                                      meta={'review_item': review_item})
         except NoSuchElementException:
-            log(logging.ERROR, 'Unexpected structure error on page %s' % response.url)
+            self.logger.log(logging.ERROR, msg='Unexpected structure error on page %s' % response.url)
 
 
 class UserSpider(CrawlSpider):
@@ -187,4 +188,4 @@ class UserSpider(CrawlSpider):
             yield user_item
 
         except NoSuchElementException:
-            log(logging.ERROR, 'Unexpected structure error on page %s' % response.url)
+            self.logger.log(logging.ERROR, msg='Unexpected structure error on page %s' % response.url)
