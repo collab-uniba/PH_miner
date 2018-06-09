@@ -49,7 +49,13 @@ SHELL=bash
 $ sudo ln -s ph_miner.logrotate /etc/logrotate.d/ph_miner
 ```
 
+7. Install ChromeDriver
+This step depends on the OS.
+
 ## Resources & Libraries
   * Product Hunt [API](https://api.producthunt.com/v1/docs)
   * [ph_py](https://github.com/anatg/ph_py) - ProductHunt.com API wrapper in Python
   * [Scrapy](https://scrapy.org) - A scraping and web-crawling framework
+  * [Selenium](https://www.seleniumhq.org) - A suite of tools for automating web browsers
+  * [ChromeDriver](http://chromedriver.chromium.org) - Tool to connect to Chromium web browser
+  * [Beautiful Soup 4](https://www.crummy.com/software/BeautifulSoup/) - HTML parser
