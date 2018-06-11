@@ -64,35 +64,50 @@ class ScrapyLauncher:
         self.session = session
 
     def get_or_update_posts_reviews(self, day, usernames_parsed):
+        cwd = os.getcwd()
         try:
+            logger.debug("Retrieving post dicussion urls")
             urls = self.session.query(Post.discussion_url).filter_by(day=day).all()
             if urls:
+                logger.debug("Building review urls")
                 urls = [url[0] + '/reviews' for url in urls]
                 logger.info('Getting or updating reviews for %s posts submitted on %s' % (len(urls), day))
-                cwd = os.getcwd()
                 os.chdir(os.path.join('scraper', 'review_user_crawler'))
+                logger.debug("Changed path to %s" % os.getcwd())
                 process = CrawlerProcess(get_project_settings())
+                logger.debug("Crawler process created")
                 process.crawl('producthunt_reviews',
                               **{'start_urls': urls, 'day': day, 'parsed_user_names': usernames_parsed})
+                logger.debug("Process crawl launched")
                 process.start()  # the script will block here until the crawling is finished
-                os.chdir(cwd)
+                logger.debug("Finished crawling")
         except Exception as e:
             logger.error("Error while getting/updating post reviews via scraper\n" + str(e))
+        finally:
+            logger.debug("Reverting to original working dir")
+            os.chdir(cwd)
 
     @staticmethod
     def get_or_update_user(user_ids, day):
+        cwd = os.getcwd()
         try:
-            urls = ["https://www.producthunt.com/@" + uid for uid in user_ids]
+            logger.debug("Building user profile urls")
+            urls = ["https://www.producthunt.com/@" + str(uid) for uid in user_ids]
             if urls:
                 logger.info('Getting or updating details for %s users' % len(urls))
-                cwd = os.getcwd()
                 os.chdir(os.path.join('scraper', 'review_user_crawler'))
+                logger.debug("Changed path to %s" % os.getcwd())
                 process = CrawlerProcess(get_project_settings())
+                logger.debug("Crawler process created")
                 process.crawl('producthunt_users', **{'start_urls': urls, 'day': day})
+                logger.debug("Process crawl launched")
                 process.start()  # the script will block here until the crawling is finished
-                os.chdir(cwd)
+                logger.debug("Finished crawling")
         except Exception as e:
             logger.error("Error while getting/updating user info via scraper\n" + str(e))
+        finally:
+            logger.debug("Reverting to original working dir")
+            os.chdir(cwd)
 
 
 class PhMiner:
@@ -109,7 +124,7 @@ class PhMiner:
         options.add_argument('--ignore-certificate-errors')
         options.add_argument("--test-type")
         options.add_argument("--headless")
-        options.add_argument("--no-sandbox")  #  for ubuntu compatibility
+        options.add_argument("--no-sandbox")  # for ubuntu compatibility
         self.driver = webdriver.Chrome(chrome_options=options)
 
     def get_newest_posts(self):
@@ -813,15 +828,12 @@ if __name__ == '__main__':
             ith_day_dt = one_week_ago_dt
             while ith_day_dt < now_dt:
                 ith_day = ith_day_dt.strftime("%Y-%m-%d")
+                # first update history from API
                 logger.info("Updating history of posts created on %s" % ith_day)
                 phm = PhMiner(s, ph_client, now, now_dt, user_details_parsed_today, users_scraper_pending)
                 user_details_parsed_today, users_scraper_pending = phm.update_posts_at_day(ith_day)
-                ith_day_dt = ith_day_dt + timedelta(days=1)
-            # retrieve pending info that can only be updated via scraping
-            ith_day_dt = one_week_ago_dt
-            while ith_day_dt < now_dt:
-                ith_day = ith_day_dt.strftime("%Y-%m-%d")
-                logger.info("Retrieving pending info via scraping for posts created on %s" % ith_day)
+                # then, update history by retrieving info that can only be obtained via scraping
+                logger.info("Scraping pending updates for posts created on %s" % ith_day)
                 launcher = ScrapyLauncher(session=s)
                 launcher.get_or_update_posts_reviews(ith_day, usernames_parsed=user_details_parsed_today)
                 launcher.get_or_update_user(users_scraper_pending, ith_day)
