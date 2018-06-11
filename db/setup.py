@@ -17,6 +17,7 @@ class SessionWrapper:
     db_name = None
     u = None
     p = None
+    pool_recycle = None
 
     @staticmethod
     def load_config(config_file):
@@ -26,6 +27,7 @@ class SessionWrapper:
             SessionWrapper.db_name = cfg[SessionWrapper.proto]['db']
             SessionWrapper.u = cfg[SessionWrapper.proto]['user']
             SessionWrapper.p = cfg[SessionWrapper.proto]['passwd']
+            SessionWrapper.pool_recycle = cfg[SessionWrapper.proto]['recycle']
             if SessionWrapper.p != '':
                 SessionWrapper.p = ':' + SessionWrapper.p
 
@@ -34,7 +36,9 @@ class SessionWrapper:
         engine = create_engine('{0}://{1}{2}@{3}/{4}?charset=utf8mb4'.format(SessionWrapper.proto, SessionWrapper.u,
                                                                              SessionWrapper.p, SessionWrapper.server,
                                                                              SessionWrapper.db_name),
-                               pool_recycle=3600)
+                               # MySQL default timeout is 28,000 sec., so recycling connection after 3600 sec is fine
+                               # MariaDB is much shorter, 600, so reduce accordingly
+                               pool_recycle=SessionWrapper.pool_recycle)
         if not database_exists(engine.url):
             SessionWrapper.log.debug("Database %s created" % SessionWrapper.db_name)
             create_database(engine.url, encoding='utf8mb4')
