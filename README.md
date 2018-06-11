@@ -26,7 +26,11 @@ mysql:
     user: root
     passwd: *******
     db: producthunt
+    pool_recycle: 3600
 ```
+
+**NOTE**: If you're using a MySQL database, the default parameter `pool_recycle` for resetting the database connection
+is fine. But, if you're using Maria DB, then change the parameter to anything smaller than 600 seconds.
 
 4. Install packages via pip:
 ```bash
