@@ -71,7 +71,7 @@ class ScrapyLauncher:
             if urls:
                 logger.debug("Building review urls")
                 urls = [url[0] + '/reviews' for url in urls]
-                logger.info('Getting or updating reviews for %s posts submitted on %s' % (len(urls), day))
+                logger.info('Getting or updating reviews for %d posts submitted on %s' % (len(urls), day))
                 os.chdir(os.path.join('scraper', 'review_user_crawler'))
                 logger.debug("Changed path to %s" % os.getcwd())
                 process = CrawlerProcess(get_project_settings())
@@ -88,18 +88,18 @@ class ScrapyLauncher:
             os.chdir(cwd)
 
     @staticmethod
-    def get_or_update_user(user_ids, day):
+    def get_or_update_user(user_ids):
         cwd = os.getcwd()
         try:
             logger.debug("Building user profile urls")
             urls = ["https://www.producthunt.com/@" + str(uid) for uid in user_ids]
             if urls:
-                logger.info('Getting or updating details for %s users' % len(urls))
+                logger.info('Getting or updating details for %d users' % len(urls))
                 os.chdir(os.path.join('scraper', 'review_user_crawler'))
                 logger.debug("Changed path to %s" % os.getcwd())
                 process = CrawlerProcess(get_project_settings())
                 logger.debug("Crawler process created")
-                process.crawl('producthunt_users', **{'start_urls': urls, 'day': day})
+                process.crawl('producthunt_users', **{'start_urls': urls})
                 logger.debug("Process crawl launched")
                 process.start()  # the script will block here until the crawling is finished
                 logger.debug("Finished crawling")
@@ -817,7 +817,7 @@ if __name__ == '__main__':
             logger.info("Retrieving reviews for daily posts of %s" % now)
             launcher = ScrapyLauncher(session=s)
             launcher.get_or_update_posts_reviews(now, usernames_parsed=user_details_parsed_today)
-            launcher.get_or_update_user(users_scraper_pending, now)
+            launcher.get_or_update_user(users_scraper_pending)
             """
             retrieve the list of days up to two weeks ago, and re-mine posts up to then altogether, so as to reduce the
             number of calls to ph_client.user_details_once_a_day(), which is very time-consuming
@@ -836,8 +836,10 @@ if __name__ == '__main__':
                 logger.info("Scraping pending updates for posts created on %s" % ith_day)
                 launcher = ScrapyLauncher(session=s)
                 launcher.get_or_update_posts_reviews(ith_day, usernames_parsed=user_details_parsed_today)
-                launcher.get_or_update_user(users_scraper_pending, ith_day)
                 ith_day_dt = ith_day_dt + timedelta(days=1)
+            # finally, update pending user info via scraping
+            logger.info("Scraping pending updates for users" )
+            launcher.get_or_update_user(users_scraper_pending)
 
         logger.info("Done")
         exit(0)
