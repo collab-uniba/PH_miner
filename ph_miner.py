@@ -119,7 +119,7 @@ class PhMiner:
         self.today_dt = today_dt
         self.user_details_once_a_day = user_details
         self.user_scrape_update_pending = user_scrape
-        # for user badges from discussion_url
+        """ for user badges from discussion_url """
         options = webdriver.ChromeOptions()
         options.add_argument('--ignore-certificate-errors')
         options.add_argument("--test-type")
@@ -134,7 +134,7 @@ class PhMiner:
 
         url = 'https://www.producthunt.com/newest'
         self.driver.get(url)
-        # explicit wait for page to load
+        """ explicit wait for page to load """
         try:
             WebDriverWait(self.driver, 120)
             time.sleep(10)
@@ -156,8 +156,6 @@ class PhMiner:
                 try:
                     _str = bs.find_all('script')[13].get_text()
                     res = re.findall(pattern=r'"shortened_url":"/r/p/(\d{6})","slug":"%s"' % slug, string=_str)
-                    # post_id = self.phc.find_post_by_slug(slug)
-                    # if post_id:
                     if res:
                         post_id = int(res[0])
                         post_ids.append(post_id)
@@ -171,7 +169,7 @@ class PhMiner:
                     logger.error(str(e))
             self.session.commit()
 
-            # scrape social media links for the post
+            """ scrape social media links for the post """
             i = -1
             for url in discussion_urls:
                 i += 1
@@ -205,8 +203,8 @@ class PhMiner:
             post = self.phc.get_details_of_post(post_id=post_id)
             self.store(post, self.today)
             self.user_scrape_update_pending = self.user_scrape_update_pending.union(set(
-                [maker.id for maker in post.makers]))
-            self.user_scrape_update_pending.add(post.user.id)
+                [maker.username for maker in post.makers]))
+            self.user_scrape_update_pending.add(post.user.username)
 
             return self.user_details_once_a_day, self.user_scrape_update_pending
         except ProductHuntError as e:
@@ -219,15 +217,15 @@ class PhMiner:
         try:
             self.phc.wait_if_no_rate_limit_remaining()
             daily_posts = [post.id for post in self.phc.get_todays_posts()]
-            # get details for each post by id
+            """ get details for each post by id """
             for post_id in daily_posts:
                 self.phc.wait_if_no_rate_limit_remaining()
                 post = self.phc.get_details_of_post(post_id=post_id)
                 self.store(post, self.today)
 
                 self.user_scrape_update_pending = self.user_scrape_update_pending.union(set(
-                    [maker.id for maker in post.makers]))
-                self.user_scrape_update_pending.add(post.user.id)
+                    [maker.username for maker in post.makers]))
+                self.user_scrape_update_pending.add(post.user.username)
 
             return self.user_details_once_a_day, self.user_scrape_update_pending
         except ProductHuntError as e:
@@ -240,15 +238,15 @@ class PhMiner:
         try:
             self.phc.wait_if_no_rate_limit_remaining()
             daily_posts = [post.id for post in self.phc.get_specific_days_posts(day)]
-            # get details for each post by id
+            """ get details for each post by id """
             for post_id in daily_posts:
                 self.phc.wait_if_no_rate_limit_remaining()
                 post = self.phc.get_details_of_post(post_id=post_id)
                 self.store(post, self.today)
 
                 self.user_scrape_update_pending = self.user_scrape_update_pending.union(set(
-                    [maker.id for maker in post.makers]))
-                self.user_scrape_update_pending.add(post.user.id)
+                    [maker.username for maker in post.makers]))
+                self.user_scrape_update_pending.add(post.user.username)
 
             return self.user_details_once_a_day, self.user_scrape_update_pending
         except ProductHuntError as e:
@@ -258,12 +256,13 @@ class PhMiner:
     def get_todays_non_featured_posts(self):
         if not self.user_details_once_a_day:
             self.user_details_once_a_day = set()
-        # today's newest posts...
+        """ today's newest posts... """
         todays_newest_posts = self.session.query(NewestPost.post_id).filter_by(day=self.today).all()
-        # ... that are *NOT* featured, i.e., not in Post table
+        """ ... that are *NOT* featured, i.e., not in Post table """
         todays_featured = self.session.query(Post.id).filter_by(day=self.today).all()
-        # get details for each non-featured today's post
+        """ get details for each non-featured today's post """
         todays_non_featured_posts = set(todays_newest_posts) - set(todays_featured)
+        logger.debug("There are %d non-featured post to retrieve", len(todays_non_featured_posts))
         try:
             for post_id in todays_non_featured_posts:
                 self.phc.wait_if_no_rate_limit_remaining()
@@ -271,8 +270,8 @@ class PhMiner:
                 self.store(post, self.today)
 
                 self.user_scrape_update_pending = self.user_scrape_update_pending.union(set(
-                    [maker.id for maker in post.makers]))
-                self.user_scrape_update_pending.add(post.user.id)
+                    [maker.username for maker in post.makers]))
+                self.user_scrape_update_pending.add(post.user.username)
 
             return self.user_details_once_a_day, self.user_scrape_update_pending
         except ProductHuntError as e:
@@ -284,15 +283,15 @@ class PhMiner:
             self.user_details_once_a_day = set()
         daily_posts = self.session.query(Post.id).filter_by(day=day).all()
         try:
-            # get details for each post by id
+            """ get details for each post by id """
             for post_id in daily_posts:
                 self.phc.wait_if_no_rate_limit_remaining()
                 post = self.phc.get_details_of_post(post_id=post_id)
                 self.store(post, self.today)
 
                 self.user_scrape_update_pending = self.user_scrape_update_pending.union(set(
-                    [maker.id for maker in post.makers]))
-                self.user_scrape_update_pending.add(post.user.id)
+                    [maker.username for maker in post.makers]))
+                self.user_scrape_update_pending.add(post.user.username)
 
             return self.user_details_once_a_day, self.user_scrape_update_pending
         except ProductHuntError as e:
@@ -342,7 +341,7 @@ class PhMiner:
         p = self.session.query(Post).filter_by(id=post.id).one_or_none()
         if p:
             logger.info("Post \'%s\' (%s) already present, updating" % (post.name, post.id))
-            # update
+            """ update """
             p.name = post.name
             p.tagline = post.tagline
             p.comments_count = post.comments_count
@@ -525,7 +524,7 @@ class PhMiner:
             u = User.parse(user)
         self.session.add(u)
 
-        # update user history if there isn't an event for today yet
+        """ update user history if there isn't an event for today yet """
         uh = self.session.query(UserHistory).filter_by(user_id=user.id, date=self.today).one_or_none()
         if uh:
             logger.debug("User %s details already present in UserHistory for %s, ignore" % (user.id, self.today))
@@ -669,11 +668,11 @@ class PhMiner:
                     self.session.add(b)
                 self.session.commit()
 
-                if comment.user.username not in self.user_details_once_a_day:  # day]:
+                if comment.user.username not in self.user_details_once_a_day:
                     try:
                         user = self.phc.get_details_of_user(comment.user.username)
                         if user:
-                            self.user_details_once_a_day.add(user.username)  # [day].add(user.username)
+                            self.user_details_once_a_day.add(user.username)
                             self._store_user(user)
                     except ProductHuntError as e:
                         logger.error(str(e))
@@ -686,7 +685,7 @@ class PhMiner:
     def _store_user_badges(self, discussion_url):
         logger.info("Storing user badges for post commenters")
         self.driver.get(discussion_url)
-        # explicit wait for page to load
+        """ explicit wait for page to load """
         try:
             WebDriverWait(self.driver, 60)
             try:
@@ -747,7 +746,7 @@ if __name__ == '__main__':
     day = None
     day_dt = None
     newest = False
-    pid = None  # 127977  128048
+    pid = None
     logger = logging_config.get_logger(_dir=now, name="ph_miner", console_level=logging.INFO)
 
     try:
@@ -764,7 +763,7 @@ if __name__ == '__main__':
             elif opt in ("-n", "--newest"):
                 newest = True
     except GetoptError as ge:
-        # print help information and exit:
+        """ print help information and exit: """
         logger.error(str(ge))
         print('Usage:\n\tpython ph_miner.py [-d|--day=<YYYY-MM-DD>] [-n|--newest] [--h|--help]')
         exit(-1)
@@ -782,13 +781,13 @@ if __name__ == '__main__':
         users_scraper_pending = set()
 
         if pid:
-            logger.info("Retrieving single post %d" % pid)
+            logger.info("Retrieving single post %s" % str(pid))
             phm = PhMiner(s, ph_client, now, now_dt, user_details_parsed_today, users_scraper_pending)
             user_details_parsed_today, users_scraper_pending = phm.get_post(pid)
             logger.info("Retrieving review for post %d as of %s" % (pid, now))
             launcher = ScrapyLauncher(session=s)
             launcher.get_or_update_posts_reviews(now, usernames_parsed=user_details_parsed_today)
-            launcher.get_or_update_user(users_scraper_pending, now)
+            launcher.get_or_update_user(users_scraper_pending)
         if newest:
             logger.info("Retrieving newest posts of %s available now" % now)
             phm = PhMiner(s, ph_client, now, now_dt)
@@ -800,9 +799,9 @@ if __name__ == '__main__':
             logger.info("Retrieving reviews for daily posts of %s" % day)
             launcher = ScrapyLauncher(session=s)
             launcher.get_or_update_posts_reviews(day, usernames_parsed=user_details_parsed_today)
-            launcher.get_or_update_user(users_scraper_pending, day)
+            launcher.get_or_update_user(users_scraper_pending)
         elif now and now_dt:
-            # retrieve today's post
+            """ retrieve today's post """
             logger.info("Retrieving daily featured posts of %s" % now)
             phm = PhMiner(s, ph_client, now, now_dt, user_details_parsed_today, users_scraper_pending)
             phm.get_todays_featured_posts()
@@ -828,21 +827,21 @@ if __name__ == '__main__':
             ith_day_dt = one_week_ago_dt
             while ith_day_dt < now_dt:
                 ith_day = ith_day_dt.strftime("%Y-%m-%d")
-                # first update history from API
+                """ first update history from API """
                 logger.info("Updating history of posts created on %s" % ith_day)
                 phm = PhMiner(s, ph_client, now, now_dt, user_details_parsed_today, users_scraper_pending)
                 user_details_parsed_today, users_scraper_pending = phm.update_posts_at_day(ith_day)
-                # then, update history by retrieving info that can only be obtained via scraping
+                """ then, update history by retrieving info that can only be obtained via scraping """
                 logger.info("Scraping pending updates for posts created on %s" % ith_day)
                 launcher = ScrapyLauncher(session=s)
                 launcher.get_or_update_posts_reviews(ith_day, usernames_parsed=user_details_parsed_today)
                 ith_day_dt = ith_day_dt + timedelta(days=1)
-            # finally, update pending user info via scraping
-            logger.info("Scraping pending updates for users" )
+            """ finally, update pending user info via scraping """
+            logger.info("Scraping pending updates for users")
             launcher.get_or_update_user(users_scraper_pending)
 
         logger.info("Done")
         exit(0)
     except KeyboardInterrupt:
-        logger.error('Received Ctrl-C or other break signal. Exiting.')
+        logger.error("Received Ctrl-C or other break signal. Exiting.")
         exit(-1)
