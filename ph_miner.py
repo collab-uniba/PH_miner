@@ -198,60 +198,28 @@ class PhMiner:
     def get_post(self, post_id):
         if not self.user_details_once_a_day:
             self.user_details_once_a_day = set()
-        try:
-            self.phc.wait_if_no_rate_limit_remaining()
-            post = self.phc.get_details_of_post(post_id=post_id)
-            self.store(post, self.today)
-            self.user_scrape_update_pending = self.user_scrape_update_pending.union(set(
-                [maker.username for maker in post.makers]))
-            self.user_scrape_update_pending.add(post.user.username)
-
-            return self.user_details_once_a_day, self.user_scrape_update_pending
-        except ProductHuntError as e:
-            logger.error(e.error_message)
-            logger.error(e.status_code)
+        self.meta_store(post_id)
+        return self.user_details_once_a_day, self.user_scrape_update_pending
 
     def get_todays_featured_posts(self):
         if not self.user_details_once_a_day:
             self.user_details_once_a_day = set()
-        try:
-            self.phc.wait_if_no_rate_limit_remaining()
-            daily_posts = [post.id for post in self.phc.get_todays_posts()]
-            """ get details for each post by id """
-            for post_id in daily_posts:
-                self.phc.wait_if_no_rate_limit_remaining()
-                post = self.phc.get_details_of_post(post_id=post_id)
-                self.store(post, self.today)
-
-                self.user_scrape_update_pending = self.user_scrape_update_pending.union(set(
-                    [maker.username for maker in post.makers]))
-                self.user_scrape_update_pending.add(post.user.username)
-
-            return self.user_details_once_a_day, self.user_scrape_update_pending
-        except ProductHuntError as e:
-            logger.error(e.error_message)
-            logger.error(e.status_code)
+        self.phc.wait_if_no_rate_limit_remaining()
+        daily_posts = [post.id for post in self.phc.get_todays_posts()]
+        """ get details for each post by id """
+        for post_id in daily_posts:
+            self.meta_store(post_id)
+        return self.user_details_once_a_day, self.user_scrape_update_pending
 
     def get_featured_posts_at(self, day):
         if not self.user_details_once_a_day:
             self.user_details_once_a_day = set()
-        try:
-            self.phc.wait_if_no_rate_limit_remaining()
-            daily_posts = [post.id for post in self.phc.get_specific_days_posts(day)]
-            """ get details for each post by id """
-            for post_id in daily_posts:
-                self.phc.wait_if_no_rate_limit_remaining()
-                post = self.phc.get_details_of_post(post_id=post_id)
-                self.store(post, self.today)
-
-                self.user_scrape_update_pending = self.user_scrape_update_pending.union(set(
-                    [maker.username for maker in post.makers]))
-                self.user_scrape_update_pending.add(post.user.username)
-
-            return self.user_details_once_a_day, self.user_scrape_update_pending
-        except ProductHuntError as e:
-            logger.error(e.error_message)
-            logger.error(e.status_code)
+        self.phc.wait_if_no_rate_limit_remaining()
+        daily_posts = [post.id for post in self.phc.get_specific_days_posts(day)]
+        """ get details for each post by id """
+        for post_id in daily_posts:
+            self.meta_store(post_id)
+        return self.user_details_once_a_day, self.user_scrape_update_pending
 
     def get_todays_non_featured_posts(self):
         if not self.user_details_once_a_day:
@@ -263,37 +231,27 @@ class PhMiner:
         """ get details for each non-featured today's post """
         todays_non_featured_posts = set(todays_newest_posts) - set(todays_featured)
         logger.debug("There are %d non-featured posts to retrieve", len(todays_non_featured_posts))
-
         for post_id in todays_non_featured_posts:
-            try:
-                self.phc.wait_if_no_rate_limit_remaining()
-                post = self.phc.get_details_of_post(post_id=post_id)
-                self.store(post, self.today)
-
-                self.user_scrape_update_pending = self.user_scrape_update_pending.union(set(
-                    [maker.username for maker in post.makers]))
-                self.user_scrape_update_pending.add(post.user.username)
-            except ProductHuntError as e:
-                logger.error(e.error_message)
-                logger.error(e.status_code)
+            self.meta_store(post_id)
         return self.user_details_once_a_day, self.user_scrape_update_pending
 
     def update_posts_at_day(self, day):
         if not self.user_details_once_a_day:
             self.user_details_once_a_day = set()
         daily_posts = self.session.query(Post.id).filter_by(day=day).all()
+        """ get details for each post by id """
+        for post_id in daily_posts:
+            self.meta_store(post_id)
+        return self.user_details_once_a_day, self.user_scrape_update_pending
+
+    def meta_store(self, post_id):
         try:
-            """ get details for each post by id """
-            for post_id in daily_posts:
-                self.phc.wait_if_no_rate_limit_remaining()
-                post = self.phc.get_details_of_post(post_id=post_id)
-                self.store(post, self.today)
-
-                self.user_scrape_update_pending = self.user_scrape_update_pending.union(set(
-                    [maker.username for maker in post.makers]))
-                self.user_scrape_update_pending.add(post.user.username)
-
-            return self.user_details_once_a_day, self.user_scrape_update_pending
+            self.phc.wait_if_no_rate_limit_remaining()
+            post = self.phc.get_details_of_post(post_id=post_id)
+            self.store(post, self.today)
+            self.user_scrape_update_pending = self.user_scrape_update_pending.union(set(
+                [maker.username for maker in post.makers]))
+            self.user_scrape_update_pending.add(post.user.username)
         except ProductHuntError as e:
             logger.error(e.error_message)
             logger.error(e.status_code)
@@ -804,7 +762,7 @@ if __name__ == '__main__':
             """ retrieve today's post """
             logger.info("Retrieving daily featured posts of %s" % now)
             phm = PhMiner(s, ph_client, now, now_dt, user_details_parsed_today, users_scraper_pending)
-            #phm.get_todays_featured_posts()
+            phm.get_todays_featured_posts()
             """
             analyze daily posts (newest) that didn't make it to the popular list (featured)
             """
