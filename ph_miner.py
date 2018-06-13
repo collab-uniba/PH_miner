@@ -71,7 +71,7 @@ class ScrapyLauncher:
             if urls:
                 logger.debug("Building review urls")
                 urls = [url[0] + '/reviews' for url in urls]
-                logger.info('Getting or updating reviews for %s posts submitted on %s' % (len(urls), day))
+                logger.info('Getting or updating reviews for %d posts submitted on %s' % (len(urls), day))
                 os.chdir(os.path.join('scraper', 'review_user_crawler'))
                 logger.debug("Changed path to %s" % os.getcwd())
                 process = CrawlerProcess(get_project_settings())
@@ -94,7 +94,7 @@ class ScrapyLauncher:
             logger.debug("Building user profile urls")
             urls = ["https://www.producthunt.com/@" + str(uid) for uid in user_ids]
             if urls:
-                logger.info('Getting or updating details for %s users' % len(urls))
+                logger.info('Getting or updating details for %d users' % len(urls))
                 os.chdir(os.path.join('scraper', 'review_user_crawler'))
                 logger.debug("Changed path to %s" % os.getcwd())
                 process = CrawlerProcess(get_project_settings())
