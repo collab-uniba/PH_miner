@@ -19,5 +19,5 @@ cd "$(dirname "$0")";
 # instead, for conda, replace with:
 # source activate <environment name>
 source .env/bin/activate
-sh run.sh
+sh run.sh $1
 deactivate
