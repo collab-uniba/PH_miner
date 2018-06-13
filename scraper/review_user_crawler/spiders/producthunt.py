@@ -159,7 +159,8 @@ class UserSpider(CrawlSpider):
         if start_urls:
             self.start_urls = start_urls
         else:
-            self.start_urls = ['https://www.producthunt.com/@rrhoover']  # for debugging purposes only
+            self.start_urls = ['https://www.producthunt.com/@rrhoover',
+                               'https://www.producthunt.com/@chrismessina']  # for debugging purposes only
 
     def parse(self, response):
         self.driver.get(response.url)
