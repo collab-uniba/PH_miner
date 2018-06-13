@@ -167,7 +167,7 @@ class UserSpider(CrawlSpider):
         try:
             user_item = UserItem()
             _id = scrapy.Selector(text=self.driver.page_source).xpath(
-                '//span[@class="font_9d927 white_ce488 small_231df normal_d2e66"]/text()').extract()[1]
+                '//span[@class="font_9d927 white_ce488 small_231df normal_d2e66 lineHeight_042f1 underline_57d3c"]/text()').extract()[1]
             streak = scrapy.Selector(text=self.driver.page_source).xpath(
                 '//span[@class="streak_f9e9f"]/text()').extract()
             if streak:
