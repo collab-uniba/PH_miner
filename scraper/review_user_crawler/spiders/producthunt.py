@@ -155,12 +155,6 @@ class UserSpider(CrawlSpider):
         options.add_argument("--no-sandbox")  # for ubuntu compatibility
         self.driver = webdriver.Chrome(chrome_options=options)
 
-        day = kwargs.pop('day', None)
-        if day:
-            self.today = day
-        else:
-            self.today = datetime.now().strftime("%Y-%m-%d")
-
         start_urls = kwargs.pop('start_urls', [])
         if start_urls:
             self.start_urls = start_urls
