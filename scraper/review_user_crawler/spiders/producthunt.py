@@ -19,9 +19,9 @@ class ReviewSpider(CrawlSpider):
     logger = logging.getLogger('scrapy')
 
     def __init__(self, *args, **kwargs):
-        super(ReviewSpider, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
-        # assumes Chrome web-driver to be installed and on the PATH
+        """ assumes Chrome web-driver to be installed and on the PATH """
         options = webdriver.ChromeOptions()
         options.add_argument('--ignore-certificate-errors')
         options.add_argument("--test-type")
@@ -50,7 +50,7 @@ class ReviewSpider(CrawlSpider):
     def parse_reviewer_url(self, response):
         review_item = response.meta.get('review_item')
         self.driver.get(response.url)
-        # explicit wait for page to load
+        """ explicit wait for page to load """
         try:
             WebDriverWait(self.driver, 60)
         except WebDriverException as wde:
@@ -58,8 +58,6 @@ class ReviewSpider(CrawlSpider):
             self.driver.save_screenshot('webdriver-error.png')
             return
         try:
-            # _id = scrapy.Selector(text=self.driver.page_source).xpath(
-            #    '//span[@class="font_9d927 white_ce488 small_231df normal_d2e66"]/text()').extract()[1]
             streak = scrapy.Selector(text=self.driver.page_source).xpath(
                 '//span[@class="streak_f9e9f"]/text()').extract()
             if streak:
@@ -145,9 +143,9 @@ class UserSpider(CrawlSpider):
     start_urls = []
 
     def __init__(self, *args, **kwargs):
-        super(UserSpider, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
-        # assumes Chrome web-driver to be installed and on the PATH
+        """ assumes Chrome web-driver to be installed and on the PATH """
         options = webdriver.ChromeOptions()
         options.add_argument('--ignore-certificate-errors')
         options.add_argument("--test-type")
@@ -164,7 +162,7 @@ class UserSpider(CrawlSpider):
 
     def parse(self, response):
         self.driver.get(response.url)
-        # explicit wait for page to load
+        """ explicit wait for page to load """
         try:
             user_item = UserItem()
             _id = scrapy.Selector(text=self.driver.page_source).xpath(
