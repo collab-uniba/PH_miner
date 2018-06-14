@@ -30,7 +30,8 @@ mysql:
 ```
 
 **NOTE**: If you're using a MySQL database, the default parameter `pool_recycle` for resetting the database connection
-is fine. But, if you're using Maria DB, then change the parameter to anything smaller than 600 seconds.
+is fine, since the `wait_timeout` is set to 28800 by default. But, if you're using Maria DB, then `wait_timeout` is set
+by default to 600 seconds. Edit the `my.cnf` file and edit to anything larger than the value chosen for `pool_recycle`.
 
 4. Install packages via pip:
 ```bash
