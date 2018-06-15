@@ -163,6 +163,9 @@ class PhMiner:
                         if not np:
                             np = NewestPost(post_id, self.today, discussion_urls[i])
                             self.session.add(np)
+                    else:
+                        logger.warning("No id found for post \'%s\', removing" % slug)
+                        slugs.remove(slug)
                 except IndexError as ie:
                     logger.error(str(ie))
                 except Exception as e:
