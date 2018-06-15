@@ -150,7 +150,7 @@ class PhMiner:
                     pass  # ignore promoted posts
 
             i = -1
-            for slug in slugs:
+            for slug in slugs[:]:
                 i += 1
                 logger.info("Retrieving id for post \'%s\'" % slug)
                 try:
