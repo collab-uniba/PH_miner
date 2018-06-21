@@ -28,7 +28,7 @@
 __author__ = '@bateman'
 __license__ = "MIT"
 __date__ = '22-04-2018'
-__version_info__ = (0, 1, 0)
+__version_info__ = (0, 2, 1)
 __version__ = '.'.join(str(i) for i in __version_info__)
 __home__ = 'https://github.com/collab-uniba/PH_miner'
 __download__ = 'https://github.com/collab-uniba/PH_miner/archive/master.zip'
@@ -44,8 +44,6 @@ from getopt import getopt, GetoptError
 import yaml
 from bs4 import BeautifulSoup
 from pytz import timezone
-from scrapy.crawler import CrawlerProcess
-from scrapy.utils.project import get_project_settings
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException, NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
@@ -54,60 +52,9 @@ from sqlalchemy.orm import exc
 from db import SessionWrapper
 from db.orm.tables import *
 from logger import logging_config
+from ph_crawler import CrawlersLauncher
 from ph_py import ProductHuntClient
 from ph_py.error import ProductHuntError
-
-
-class ScrapyLauncher:
-
-    def __init__(self, session):
-        self.session = session
-
-    def get_or_update_posts_reviews(self, day, usernames_parsed):
-        cwd = os.getcwd()
-        try:
-            logger.debug("Retrieving post dicussion urls")
-            urls = self.session.query(Post.discussion_url).filter_by(day=day).all()
-            if urls:
-                logger.debug("Building review urls")
-                urls = [url[0] + '/reviews' for url in urls]
-                logger.info('Getting or updating reviews for %d posts submitted on %s' % (len(urls), day))
-                os.chdir(os.path.join('scraper', 'review_user_crawler'))
-                logger.debug("Changed path to %s" % os.getcwd())
-                process = CrawlerProcess(get_project_settings())
-                logger.debug("Crawler process created")
-                process.crawl('producthunt_reviews',
-                              **{'start_urls': urls, 'day': day, 'parsed_user_names': usernames_parsed})
-                logger.debug("Process crawl launched")
-                process.start()  # the script will block here until the crawling is finished
-                logger.debug("Finished crawling")
-        except Exception as e:
-            logger.error("Error while getting/updating post reviews via scraper\n" + str(e))
-        finally:
-            logger.debug("Reverting to original working dir")
-            os.chdir(cwd)
-
-    @staticmethod
-    def get_or_update_user(user_ids):
-        cwd = os.getcwd()
-        try:
-            logger.debug("Building user profile urls")
-            urls = ["https://www.producthunt.com/@" + str(uid) for uid in user_ids]
-            if urls:
-                logger.info('Getting or updating details for %d users' % len(urls))
-                os.chdir(os.path.join('scraper', 'review_user_crawler'))
-                logger.debug("Changed path to %s" % os.getcwd())
-                process = CrawlerProcess(get_project_settings())
-                logger.debug("Crawler process created")
-                process.crawl('producthunt_users', **{'start_urls': urls})
-                logger.debug("Process crawl launched")
-                process.start()  # the script will block here until the crawling is finished
-                logger.debug("Finished crawling")
-        except Exception as e:
-            logger.error("Error while getting/updating user info via scraper\n" + str(e))
-        finally:
-            logger.debug("Reverting to original working dir")
-            os.chdir(cwd)
 
 
 class PhMiner:
@@ -746,21 +693,29 @@ if __name__ == '__main__':
             phm = PhMiner(s, ph_client, now, now_dt, user_details_parsed_today, users_scraper_pending)
             user_details_parsed_today, users_scraper_pending = phm.get_post(pid)
             logger.info("Retrieving review for post %d as of %s" % (pid, now))
-            launcher = ScrapyLauncher(session=s)
-            launcher.get_or_update_posts_reviews(now, usernames_parsed=user_details_parsed_today)
-            launcher.get_or_update_user(users_scraper_pending)
+            launcher = CrawlersLauncher(session=s)
+            launcher.setup_single_post_reviews(pid=pid)
+            launcher.set_user_profiles_crawler(user_ids=users_scraper_pending)
+            launcher.start(parsed_user_names=user_details_parsed_today)
+            logger.info("Done")
+            exit(0)
         if newest:
             logger.info("Retrieving newest posts of %s available now" % now)
             phm = PhMiner(s, ph_client, now, now_dt)
             phm.get_newest_posts()
+            logger.info("Done")
+            exit(0)
         elif day and day_dt:
             logger.info("Retrieving daily posts of %s" % day)
             phm = PhMiner(s, ph_client, day, day_dt, user_details_parsed_today, users_scraper_pending)
             user_details_parsed_today, users_scraper_pending = phm.get_featured_posts_at(day)
             logger.info("Retrieving reviews for daily posts of %s" % day)
-            launcher = ScrapyLauncher(session=s)
-            launcher.get_or_update_posts_reviews(day, usernames_parsed=user_details_parsed_today)
-            launcher.get_or_update_user(users_scraper_pending)
+            launcher = CrawlersLauncher(session=s)
+            launcher.setup_post_reviews_crawler(day=day)
+            launcher.set_user_profiles_crawler(user_ids=users_scraper_pending)
+            launcher.start(parsed_user_names=user_details_parsed_today)
+            logger.info("Done")
+            exit(0)
         elif now and now_dt:
             """ retrieve today's post """
             logger.info("Retrieving daily featured posts of %s" % now)
@@ -775,9 +730,7 @@ if __name__ == '__main__':
             now scrape pending content for all of today's post, both featured and not-featured
             """
             logger.info("Retrieving reviews for daily posts of %s" % now)
-            launcher = ScrapyLauncher(session=s)
-            launcher.get_or_update_posts_reviews(now, usernames_parsed=user_details_parsed_today)
-            launcher.get_or_update_user(users_scraper_pending)
+            launcher = CrawlersLauncher(session=s)
             """
             retrieve the list of days up to two weeks ago, and re-mine posts up to then altogether, so as to reduce the
             number of calls to ph_client.user_details_once_a_day(), which is very time-consuming
@@ -786,7 +739,7 @@ if __name__ == '__main__':
             logger.info("Updating history of both featured and non-featured posts up to one week ago (%s)"
                         % one_week_ago_dt.strftime("%Y-%m-%d"))
             ith_day_dt = one_week_ago_dt
-            while ith_day_dt < now_dt:
+            while ith_day_dt <= now_dt:
                 ith_day = ith_day_dt.strftime("%Y-%m-%d")
                 """ first update history from API """
                 logger.info("Updating history of posts created on %s" % ith_day)
@@ -794,15 +747,18 @@ if __name__ == '__main__':
                 user_details_parsed_today, users_scraper_pending = phm.update_posts_at_day(ith_day)
                 """ then, update history by retrieving info that can only be obtained via scraping """
                 logger.info("Scraping pending updates for posts created on %s" % ith_day)
-                launcher = ScrapyLauncher(session=s)
-                launcher.get_or_update_posts_reviews(ith_day, usernames_parsed=user_details_parsed_today)
+                launcher.setup_post_reviews_crawler(day=ith_day)
+                launcher.set_user_profiles_crawler(user_ids=users_scraper_pending)
                 ith_day_dt = ith_day_dt + timedelta(days=1)
-            """ finally, update pending user info via scraping """
-            logger.info("Scraping pending updates for users")
-            launcher.get_or_update_user(users_scraper_pending)
 
-        logger.info("Done")
-        exit(0)
+            """ finally, update pending review user info via scraping """
+            logger.info("Scraping pending updates for users")
+            launcher.start(parsed_user_names=user_details_parsed_today)
+            logger.info("Done")
+            exit(0)
     except KeyboardInterrupt:
         logger.error("Received Ctrl-C or other break signal. Exiting.")
         exit(-1)
+    except Exception as e:
+        logger.exception('Unexpected exception:\n' + str(e))
+        exit(-2)
