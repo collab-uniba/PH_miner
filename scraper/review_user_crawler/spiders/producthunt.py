@@ -4,6 +4,7 @@ from datetime import datetime
 
 import scrapy
 from bs4 import BeautifulSoup
+from pytz import timezone
 from scrapy.spiders import CrawlSpider
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, WebDriverException
@@ -29,17 +30,14 @@ class ReviewSpider(CrawlSpider):
         options.add_argument("--no-sandbox")  # for ubuntu compatibility
         self.driver = webdriver.Chrome(chrome_options=options)
 
-        day = kwargs.pop('day', None)
-        if day:
-            self.today = day
-        else:
-            self.today = datetime.now().strftime("%Y-%m-%d")
+        self.today = datetime.now(timezone('US/Pacific')).strftime("%Y-%m-%d")
 
         start_urls = kwargs.pop('start_urls', [])
         if start_urls:
             self.start_urls = start_urls
         else:
-            self.start_urls = ['https://www.producthunt.com/posts/flow-e-2-0']  # for debugging purposes only
+            self.start_urls = ['https://www.producthunt.com/posts/flow-e-2-0',
+                               'https://www.producthunt.com/posts/github-for-unity']  # for debugging purposes only
 
         parsed_user_names = kwargs.pop('parsed_user_names', [])
         if parsed_user_names:
