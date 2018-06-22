@@ -1,4 +1,4 @@
-/var/log/ph_miner.log {
+/var/log/ph_miner*.log {
 	weekly
     minsize 1M
     copytruncate
