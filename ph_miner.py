@@ -210,7 +210,6 @@ class PhMiner:
         self._store_post(post, day)
 
         hunter = post.user
-        # self.user_details_once_a_day[day].update(['chrismessina', 'rrhoover'])
         self._store_post_hunter(hunter, post, day)
 
         makers = post.makers
@@ -280,10 +279,11 @@ class PhMiner:
 
         ph = self.session.query(PostHistory).filter_by(post_id=post.id, date=self.today).one_or_none()
         if ph:
-            # XXX maybe we should update this one too...
+            # TODO XXX maybe we should update this one too...
+            # TODO in case, remember to update also the scraper cloned part
             logger.info("Post history already up to date")
         else:
-            logger.info("Updating post history")
+            logger.info("Storing post history")
             ph = PostHistory.parse(post, self.today)
             self.session.add(ph)
         self.session.commit()
@@ -592,42 +592,45 @@ class PhMiner:
 
     def _store_user_badges(self, discussion_url):
         logger.info("Storing user badges for post commenters")
-        self.driver.get(discussion_url)
-        """ explicit wait for page to load """
         try:
-            WebDriverWait(self.driver, 60)
+            self.driver.get(discussion_url)
+            """ explicit wait for page to load """
             try:
-                btn = self.driver.find_element_by_xpath('//div[@class="loadMore_f1388"]/button')
-                while btn:
-                    self.driver.find_element_by_css_selector(
-                        '.button_30e5c.fluidSize_c4dc2.mediumSize_c215f.simpleVariant_8a863').click()
-                    time.sleep(3)
+                WebDriverWait(self.driver, 60)
+                try:
                     btn = self.driver.find_element_by_xpath('//div[@class="loadMore_f1388"]/button')
-            except NoSuchElementException:  # no more buttons to click
-                bs = BeautifulSoup(self.driver.page_source, "lxml")
-                spans = bs.find_all("span",
-                                    {"class": "font_9d927 black_476ed small_231df semiBold_e201b headline_8ed42"})
-                for span in spans:
-                    user_name = span.next['href'][2:]
-                    user_badges = list()
-                    if user_name:
-                        try:
-                            for tag in span.span.contents:
-                                user_badges.append(tag.get_text())
-                            if user_name and user_badges:
-                                user = self.session.query(User).filter_by(username=user_name).one_or_none()
-                                if user:
-                                    user.badges = ','.join(user_badges)
-                                    self.session.add(user)
-                                    self.session.commit()
-                        except AttributeError:
-                            continue
-        except TimeoutException:
-            logger.error('Timeout error waiting for resolution of {0}'.format(discussion_url))
-            self.driver.save_screenshot('timeout_%s.png' % discussion_url)
-        except WebDriverException as wde:
-            logger.error(str(wde))
-            self.driver.save_screenshot('webdriver_%s.png' % discussion_url)
+                    while btn:
+                        self.driver.find_element_by_css_selector(
+                            '.button_30e5c.fluidSize_c4dc2.mediumSize_c215f.simpleVariant_8a863').click()
+                        time.sleep(3)
+                        btn = self.driver.find_element_by_xpath('//div[@class="loadMore_f1388"]/button')
+                except NoSuchElementException:  # no more buttons to click
+                    bs = BeautifulSoup(self.driver.page_source, "lxml")
+                    spans = bs.find_all("span",
+                                        {"class": "font_9d927 black_476ed small_231df semiBold_e201b headline_8ed42"})
+                    for span in spans:
+                        user_name = span.next['href'][2:]
+                        user_badges = list()
+                        if user_name:
+                            try:
+                                for tag in span.span.contents:
+                                    user_badges.append(tag.get_text())
+                                if user_name and user_badges:
+                                    user = self.session.query(User).filter_by(username=user_name).one_or_none()
+                                    if user:
+                                        user.badges = ','.join(user_badges)
+                                        self.session.add(user)
+                                        self.session.commit()
+                            except AttributeError:
+                                continue
+            except TimeoutException:
+                logger.error('Timeout error waiting for resolution of {0}'.format(discussion_url))
+                self.driver.save_screenshot('timeout_%s.png' % discussion_url)
+            except WebDriverException as wde:
+                logger.error(str(wde))
+                self.driver.save_screenshot('webdriver_%s.png' % discussion_url)
+        except BrokenPipeError as bpe:
+            logger.error('Connection error while scraping user badges:\n' + str(bpe))
 
 
 def setup_db(config_file):
@@ -654,14 +657,17 @@ if __name__ == '__main__':
     day = None
     day_dt = None
     newest = False
+    update = False
     pid = None
+    help_string = 'Usage:\n\tpython ph_miner.py [-d|--day=<YYYY-MM-DD>] [-p|--postid=N] [-n|--newest] [-u|--update] ' \
+                  '[--h|--help]'
     logger = logging_config.get_logger(_dir=now, name="ph_miner", console_level=logging.INFO)
 
     try:
-        opts, _ = getopt(sys.argv[1:], "hd:p:n", ["help", "day=", "postid=", "newest"])
+        opts, _ = getopt(sys.argv[1:], "hd:p:nu", ["help", "day=", "postid=", "newest", "update"])
         for opt, arg in opts:
             if opt in ("-h", "--help"):
-                print('Usage:\n\tpython ph_miner.py [-d|--day=<YYYY-MM-DD>] [-p|--postid=N] [-n|--newest] [--h|--help]')
+                print(help_string)
                 exit(0)
             elif opt in ("-d", "--day"):
                 day = arg
@@ -670,11 +676,13 @@ if __name__ == '__main__':
                 pid = int(arg)
             elif opt in ("-n", "--newest"):
                 newest = True
+            elif opt in ("-u", "--update"):
+                update = True
     except GetoptError as ge:
         """ print help information and exit: """
         logger.error(str(ge))
-        print('Usage:\n\tpython ph_miner.py [-d|--day=<YYYY-MM-DD>] [-n|--newest] [--h|--help]')
-        exit(-1)
+        print(help_string)
+        exit(1)
 
     try:
         logger.info("Creating Product Hunt app")
@@ -716,8 +724,35 @@ if __name__ == '__main__':
             launcher.start(parsed_user_names=user_details_parsed_today)
             logger.info("Done")
             exit(0)
+        if update:
+            """
+            retrieve the list of days up to two weeks ago, and re-mine posts up to then altogether, so as to reduce the
+            number of calls to ph_client.user_details_once_a_day(), which is very time-consuming
+            """
+            launcher = CrawlersLauncher(session=s)
+            one_week_ago_dt = now_dt - datetime.timedelta(weeks=1)
+            logger.info("Updating history of both featured and non-featured posts up to one week ago (%s)"
+                        % one_week_ago_dt.strftime("%Y-%m-%d"))
+            ith_day_dt = one_week_ago_dt
+            while ith_day_dt < now_dt:
+                ith_day = ith_day_dt.strftime("%Y-%m-%d")
+                """ first update history from API """
+                logger.info("Updating history of posts created on %s" % ith_day)
+                phm = PhMiner(s, ph_client, now, now_dt, user_details_parsed_today, users_scraper_pending)
+                user_details_parsed_today, users_scraper_pending = phm.update_posts_at_day(ith_day)
+                """ then, update history by retrieving info that can only be obtained via scraping """
+                logger.info("Yielding scrape of pending updates for posts created on %s" % ith_day)
+                launcher.setup_post_reviews_crawler(day=ith_day)
+                """ and update pending reviewer's info via scraping """
+                logger.info("Yielding scrape of pending updates for users")
+                launcher.set_user_profiles_crawler(user_ids=users_scraper_pending)
+                ith_day_dt = ith_day_dt + timedelta(days=1)
+            """ finally, launch all the queued crawlers """
+            launcher.start(parsed_user_names=user_details_parsed_today)
+            logger.info("Done")
+            exit(0)
         elif now and now_dt:
-            """ retrieve today's post """
+            """ analyze today's featured post """
             logger.info("Retrieving daily featured posts of %s" % now)
             phm = PhMiner(s, ph_client, now, now_dt, user_details_parsed_today, users_scraper_pending)
             phm.get_todays_featured_posts()
@@ -727,31 +762,13 @@ if __name__ == '__main__':
             logger.info("Retrieving daily non-featured posts of %s" % now)
             user_details_parsed_today, users_scraper_pending = phm.get_todays_non_featured_posts()
             """
-            now scrape pending content for all of today's post, both featured and not-featured
+            now scrape pending content for all of today's posts, both featured and not-featured
             """
-            logger.info("Retrieving reviews for daily posts of %s" % now)
             launcher = CrawlersLauncher(session=s)
-            """
-            retrieve the list of days up to two weeks ago, and re-mine posts up to then altogether, so as to reduce the
-            number of calls to ph_client.user_details_once_a_day(), which is very time-consuming
-            """
-            one_week_ago_dt = now_dt - datetime.timedelta(weeks=1)
-            logger.info("Updating history of both featured and non-featured posts up to one week ago (%s)"
-                        % one_week_ago_dt.strftime("%Y-%m-%d"))
-            ith_day_dt = one_week_ago_dt
-            while ith_day_dt <= now_dt:
-                ith_day = ith_day_dt.strftime("%Y-%m-%d")
-                """ first update history from API """
-                logger.info("Updating history of posts created on %s" % ith_day)
-                phm = PhMiner(s, ph_client, now, now_dt, user_details_parsed_today, users_scraper_pending)
-                user_details_parsed_today, users_scraper_pending = phm.update_posts_at_day(ith_day)
-                """ then, update history by retrieving info that can only be obtained via scraping """
-                logger.info("Scraping pending updates for posts created on %s" % ith_day)
-                launcher.setup_post_reviews_crawler(day=ith_day)
-                launcher.set_user_profiles_crawler(user_ids=users_scraper_pending)
-                ith_day_dt = ith_day_dt + timedelta(days=1)
-
-            """ finally, update pending review user info via scraping """
+            logger.info("Yielding scrape of pending updates for posts created on %s" % now)
+            launcher.setup_post_reviews_crawler(day=now)
+            logger.info("Yielding scrape of pending updates for users")
+            launcher.set_user_profiles_crawler(user_ids=users_scraper_pending)
             logger.info("Scraping pending updates for users")
             launcher.start(parsed_user_names=user_details_parsed_today)
             logger.info("Done")
