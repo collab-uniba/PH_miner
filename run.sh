@@ -12,6 +12,9 @@ if [ "$exit_code" -ne 0 ]; then
 else
     echo "$DATE" >> "$DONE_FILE"
 fi
+# only for the last execution of the script, run w/o params
 # for safety, kill chromedriver and chromium browser dangling processes
-killall -9 chromium-browser > /dev/null
-killall -9 chromedriver > /dev/null
+if [ -z "$1" ]; then
+    killall -9 chromium-browser > /dev/null
+    killall -9 chromedriver > /dev/null
+fi
