@@ -45,9 +45,10 @@ $ crontab -e
 Add the following lines. Make sure to enter the correct path.
 ```bash
 SHELL=bash
-# New products are uploaded at 12.01 PST (just past midnight, 10am next morning in CET timezone):
+# New products are uploaded at 12.01 PST (just past midnight, 9am next morning in CET timezone):
 # minute hour day-of-month month day-of-week command
-    30     9       *          *       *        /path/.../to/PH_miner/cronjob.sh /var/log/ph_miner.log 2>&1
+    35     8       *          *       *       /path/.../to/PH_miner/cronjob.sh /var/log/ph_miner.log 2>&1
+    */30   *       *          *       *       /path/.../to/PH_miner/cronjob.sh --newest >> /var/log/ph_miner.log 2>&1
 ```
 6. Enable the rotation of the log file:
 ```bash
