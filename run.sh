@@ -12,6 +12,6 @@ if [ "$exit_code" -ne 0 ]; then
 else
     cat "$DATE" >> "$DONE_FILE"
 fi
-# for safety, kill chromedriver and google-chrome dangling processes
-killall -9 chrome > /dev/null
-killall -9 chromdriver > /dev/null
+# for safety, kill chromedriver and chromium browser dangling processes
+killall -9 chromium-browser > /dev/null
+killall -9 chromedriver > /dev/null
