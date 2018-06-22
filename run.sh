@@ -6,11 +6,11 @@ python ph_miner.py $1
 exit_code=$?
 DONE_FILE="./done.txt"
 ERRORED_FILE="./errored.txt"
-DATE=`date '+%Y-%m-%d %H:%M:%S'`
+DATE=`date '+%Y-%m-%d'`
 if [ "$exit_code" -ne 0 ]; then
-    cat "$DATE" >> "$ERRORED_FILE"
+    echo "$DATE" >> "$ERRORED_FILE"
 else
-    cat "$DATE" >> "$DONE_FILE"
+    echo "$DATE" >> "$DONE_FILE"
 fi
 # for safety, kill chromedriver and chromium browser dangling processes
 killall -9 chromium-browser > /dev/null
