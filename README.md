@@ -54,8 +54,12 @@ SHELL=bash
 $ sudo ln -s ph_miner.logrotate /etc/logrotate.d/ph_miner
 ```
 
-7. Install ChromeDriver
-This step depends on the OS.
+7. Install Chromium browser and the chromedriver
+This step depends on the OS. On Ubuntu boxes, run:
+```bash
+$ sudo apt-get install chromium-browser chromium-chromedriver
+$ sudo ln -s /usr/lib/chromium-browser/chromedriver /usr/bin/chromedriver
+```
 
 ## Resources & Libraries
   * Product Hunt [API](https://api.producthunt.com/v1/docs)
