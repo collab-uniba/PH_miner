@@ -31,7 +31,7 @@ mysql:
 
 **NOTE**: If you're using a MySQL database, the default parameter `pool_recycle` for resetting the database connection
 is fine, since the `wait_timeout` is set to 28800 by default. But, if you're using Maria DB, then `wait_timeout` is set
-by default to 600 seconds. Edit the `my.cnf` file and edit to anything larger than the value chosen for `pool_recycle`.
+by default to 600 seconds. Edit the `my.cnf` file and change it to anything larger than the value chosen for `pool_recycle`.
 
 4. Install packages via pip:
 ```bash
@@ -51,7 +51,7 @@ SHELL=bash
     05    20       *          *       *       /path/.../to/PH_miner/cronjob.sh --update >> /var/log/ph_miner_updates.log 2>&1
     */30   *       *          *       *       /path/.../to/PH_miner/cronjob.sh --newest >> /var/log/ph_miner.log 2>&1
 ```
-6. Enable the rotation of the log file:
+6. Enable the rotation of the log files:
 ```bash
 $ sudo ln -s ph_miner.logrotate /etc/logrotate.d/ph_miner
 ```
