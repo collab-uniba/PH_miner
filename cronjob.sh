@@ -6,10 +6,12 @@
 #   SHELL=bash
 # New products are uploaded at 12.01 PST (just past midnight, 9.00am next morning in Italy):
 # minute hour day-of-month month day-of-week command
-#  45      8       *          *       *       /path/.../to/PH_miner/cronjob.sh >> /var/log/ph_miner.log 2>&1
+#  35      8       *          *       *       /path/.../to/PH_miner/cronjob.sh >> /var/log/ph_miner.log 2>&1
+#
+#  05      20       *          *       *       /path/.../to/PH_miner/cronjob.sh --update >> /var/log/ph_miner_updates.log 2>&1
 #
 # To scan also newest product that do NOT get featured, run every 15 min:
-#  */15     *       *          *       *       /path/.../to/PH_miner/cronjob.sh --newest >> /var/log/ph_miner.log 2>&1
+#  */30     *       *          *       *       /path/.../to/PH_miner/cronjob.sh --newest >> /var/log/ph_miner_newest.log 2>&1
 #
 # To enable the rotation of logs, run:
 #   $ sudo ln -s ph_miner.logrotate /etc/logrotate.d/ph_miner
