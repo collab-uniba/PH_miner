@@ -80,9 +80,9 @@ class PhMiner:
         post_ids = list()
 
         url = 'https://www.producthunt.com/newest'
-        self.driver.get(url)
-        """ explicit wait for page to load """
         try:
+            self.driver.get(url)
+            """ explicit wait for page to load """
             WebDriverWait(self.driver, 120)
             time.sleep(10)
             bs = BeautifulSoup(self.driver.page_source, "lxml")
@@ -144,6 +144,9 @@ class PhMiner:
         except WebDriverException as wde:
             logger.error(str(wde))
             self.driver.save_screenshot('webdriver_%s.png' % url)
+        finally:
+            """ close the driver instance in any case """
+            self.driver.quit()
 
     def get_post(self, post_id):
         if not self.user_details_once_a_day:
@@ -631,6 +634,9 @@ class PhMiner:
                 self.driver.save_screenshot('webdriver_%s.png' % discussion_url)
         except BrokenPipeError as bpe:
             logger.error('Connection error while scraping user badges:\n' + str(bpe))
+        finally:
+            """ close the driver instance in any case """
+            self.driver.quit()
 
 
 def setup_db(config_file):
