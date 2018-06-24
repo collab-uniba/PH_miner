@@ -74,6 +74,9 @@ class PhMiner:
         options.add_argument("--no-sandbox")  # for ubuntu compatibility
         self.driver = webdriver.Chrome(chrome_options=options)
 
+    def clean_up(self):
+        self.driver.quit()
+
     def get_newest_posts(self):
         discussion_urls = list()
         slugs = list()
@@ -145,8 +148,8 @@ class PhMiner:
             logger.error(str(wde))
             self.driver.save_screenshot('webdriver_%s.png' % url)
         finally:
-            """ close the driver instance in any case """
-            self.driver.quit()
+            """ close the browser instance in any case """
+            self.driver.close()
 
     def get_post(self, post_id):
         if not self.user_details_once_a_day:
@@ -635,8 +638,8 @@ class PhMiner:
         except BrokenPipeError as bpe:
             logger.error('Connection error while scraping user badges:\n' + str(bpe))
         finally:
-            """ close the driver instance in any case """
-            self.driver.quit()
+            """ close the browser instance in any case """
+            self.driver.close()
 
 
 def setup_db(config_file):
@@ -665,6 +668,7 @@ if __name__ == '__main__':
     newest = False
     update = False
     pid = None
+    phm = None
     help_string = 'Usage:\n\tpython ph_miner.py [-d|--day=<YYYY-MM-DD>] [-p|--postid=N] [-n|--newest] [-u|--update] ' \
                   '[--h|--help]'
     logger = logging_config.get_logger(_dir=now, name="ph_miner", console_level=logging.INFO)
@@ -785,3 +789,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.exception('Unexpected exception:\n' + str(e))
         exit(-2)
+    finally:
+        """ in any case, we force quitting the webdriver"""
+        if phm:
+            phm.clean_up()
