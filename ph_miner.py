@@ -147,9 +147,6 @@ class PhMiner:
         except WebDriverException as wde:
             logger.error(str(wde))
             self.driver.save_screenshot('webdriver_%s.png' % url)
-        finally:
-            """ close the browser instance in any case """
-            self.driver.close()
 
     def get_post(self, post_id):
         if not self.user_details_once_a_day:
@@ -637,9 +634,6 @@ class PhMiner:
                 self.driver.save_screenshot('webdriver_%s.png' % discussion_url)
         except BrokenPipeError as bpe:
             logger.error('Connection error while scraping user badges:\n' + str(bpe))
-        finally:
-            """ close the browser instance in any case """
-            self.driver.close()
 
 
 def setup_db(config_file):
