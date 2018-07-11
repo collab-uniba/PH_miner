@@ -28,16 +28,17 @@ class CrawlersLauncher:
         self.session = session
         self.review_urls = []
         self.profile_urls = []
-        self.runner = CrawlerRunner()
-        self.__configure_project_logging()
+        settings = self.__configure_project()
+        self.runner = CrawlerRunner(settings=settings)
 
     @staticmethod
-    def __configure_project_logging():
+    def __configure_project():
         cwd = os.getcwd()
         os.chdir(os.path.join('scraper', 'review_user_crawler'))
         scrapy_settings = get_project_settings()
         os.chdir(cwd)
         configure_logging(scrapy_settings)
+        return scrapy_settings
 
     def setup_single_post_reviews(self, pid):
         logger.debug('Retrieving post with id %d' % pid)
