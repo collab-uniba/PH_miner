@@ -61,9 +61,13 @@ class ReviewSpider(CrawlSpider):
             if streak:
                 streak = ''.join(streak)
             username = response.url.split('https://www.producthunt.com')[1]
-            collections_followed_count = scrapy.Selector(text=self.driver.page_source).xpath(
-                '//a[@href="%s/followed_collections"]/em/text()' % username).extract()[0]
-
+            try:
+                collections_followed_count = scrapy.Selector(text=self.driver.page_source).xpath(
+                    '//a[@href="%s/followed_collections"]/em/text()' % username).extract()[0]
+            except IndexError:
+                self.logger.warning('Index error parsing collections followed of user \'%s\', recovering...' % username)
+                collections_followed_count = scrapy.Selector(text=self.driver.page_source).xpath(
+                    '//a[@href="/%s/followed_collections"]/em/text()' % username).extract()[0]
             review_item['reviewer_badges'] = None
             review_item['reviewer_daily_upvote_streak'] = streak
             review_item['reviewer_collections_followed_count'] = collections_followed_count
@@ -163,21 +167,28 @@ class UserSpider(CrawlSpider):
         """ explicit wait for page to load """
         try:
             user_item = UserItem()
-            _id = scrapy.Selector(text=self.driver.page_source).xpath(
-                '//span[@class="font_9d927 white_ce488 small_231df normal_d2e66 lineHeight_042f1 underline_57d3c"]/text()').extract()[1]
+            username = response.url.split('https://www.producthunt.com')[1]
+            try:
+                _id = scrapy.Selector(text=self.driver.page_source).xpath(
+                    '//span[@class="font_9d927 white_ce488 small_231df normal_d2e66 lineHeight_042f1 underline_57d3c"]/text()').extract()[1]
+                user_item['id'] = _id
+            except IndexError:
+                self.logger.error('Index error extracting the user id of \'%s\'' % username)
             streak = scrapy.Selector(text=self.driver.page_source).xpath(
                 '//span[@class="streak_f9e9f"]/text()').extract()
             if streak:
                 streak = ''.join(streak)
-            username = response.url.split('https://www.producthunt.com')[1]
-            collections_followed_count = scrapy.Selector(text=self.driver.page_source).xpath(
-                '//a[@href="%s/followed_collections"]/em/text()' % username).extract()[0]
-
-            user_item['id'] = _id
+                user_item['daily_upvote_streak'] = streak
+            try:
+                collections_followed_count = scrapy.Selector(text=self.driver.page_source).xpath(
+                    '//a[@href="%s/followed_collections"]/em/text()' % username).extract()[0]
+                user_item['collections_followed_count'] = collections_followed_count
+            except IndexError:
+                self.logger.warning('Index error parsing collections followed of user \'%s\', recovering...' % username)
+                collections_followed_count = scrapy.Selector(text=self.driver.page_source).xpath(
+                    '//a[@href="/%s/followed_collections"]/em/text()' % username).extract()[0]
+                user_item['collections_followed_count'] = collections_followed_count
             user_item['badges'] = None
-            user_item['daily_upvote_streak'] = streak
-            user_item['collections_followed_count'] = collections_followed_count
-
             yield user_item
 
         except NoSuchElementException:
