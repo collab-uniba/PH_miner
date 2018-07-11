@@ -105,7 +105,7 @@ class ReviewCrawlerPipeline(object):
 class ReviewUserCrawlerPipeline(object):
     session = setup_db(db_config_file)
     ph_client = setup_ph_client(ph_config_file)
-    today = datetime.now(timezone('US/Pacific')).strftime("%Y-%m-%d")
+    today = datetime.datetime.now(timezone('US/Pacific')).strftime("%Y-%m-%d")
 
     def _store_user(self, user):
         """
