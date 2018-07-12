@@ -606,27 +606,33 @@ class PhMiner:
                     while btn:
                         self.driver.find_element_by_css_selector(
                             '.button_30e5c.fluidSize_c4dc2.mediumSize_c215f.simpleVariant_8a863').click()
-                        time.sleep(3)
+                        time.sleep(5)
                         btn = self.driver.find_element_by_xpath('//div[@class="loadMore_f1388"]/button')
-                except NoSuchElementException:  # no more buttons to click
-                    bs = BeautifulSoup(self.driver.page_source, "lxml")
-                    spans = bs.find_all("span",
-                                        {"class": "font_9d927 black_476ed small_231df semiBold_e201b headline_8ed42"})
-                    for span in spans:
-                        user_name = span.next['href'][2:]
-                        user_badges = list()
-                        if user_name:
-                            try:
-                                for tag in span.span.contents:
-                                    user_badges.append(tag.get_text())
-                                if user_name and user_badges:
-                                    user = self.session.query(User).filter_by(username=user_name).one_or_none()
-                                    if user:
-                                        user.badges = ','.join(user_badges)
-                                        self.session.add(user)
-                                        self.session.commit()
-                            except AttributeError:
-                                continue
+                except NoSuchElementException:
+                    """ no more buttons to click """
+                    pass
+                except Exception as e:
+                    logger.error(str(e))
+                    f = 'store-badges-error-%s.png' % datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+                    self.driver.get_screenshot_as_file(filename=f)
+                bs = BeautifulSoup(self.driver.page_source, "lxml")
+                spans = bs.find_all("span",
+                                    {"class": "font_9d927 black_476ed small_231df semiBold_e201b headline_8ed42"})
+                for span in spans:
+                    user_name = span.next['href'][2:]
+                    user_badges = list()
+                    if user_name:
+                        try:
+                            for tag in span.span.contents:
+                                user_badges.append(tag.get_text())
+                            if user_name and user_badges:
+                                user = self.session.query(User).filter_by(username=user_name).one_or_none()
+                                if user:
+                                    user.badges = ','.join(user_badges)
+                                    self.session.add(user)
+                                    self.session.commit()
+                        except AttributeError:
+                            continue
             except TimeoutException:
                 logger.error('Timeout error waiting for resolution of {0}'.format(discussion_url))
                 self.driver.save_screenshot('timeout_%s.png' % discussion_url)
