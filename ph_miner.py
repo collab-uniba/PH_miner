@@ -206,6 +206,7 @@ class PhMiner:
                 [maker.username for maker in post.makers]))
             self.user_scrape_update_pending.add(post.user.username)
         except ProductHuntError as e:
+            logger.error('Error storing post with id \'%s\', details below:' % post_id)
             logger.error(e.error_message)
             logger.error(e.status_code)
 
