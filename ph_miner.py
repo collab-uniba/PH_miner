@@ -206,7 +206,7 @@ class PhMiner:
                 [maker.username for maker in post.makers]))
             self.user_scrape_update_pending.add(post.user.username)
         except ProductHuntError as e:
-            logger.error('Error storing post with id \'%s\', details below:' % post_id)
+            logger.error('Error storing post with id \'%s\', see below' % post_id)
             logger.error(e.error_message)
             logger.error(e.status_code)
 
@@ -613,7 +613,8 @@ class PhMiner:
                     pass
                 except Exception as e:
                     logger.error(str(e))
-                    f = 'store-badges-error-%s.png' % datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+                    post = discussion_url.split('https://www.producthunt.com/posts/')[1]
+                    f = '{0}-store-badges-{1}.png'.format(post, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
                     self.driver.get_screenshot_as_file(filename=f)
                 bs = BeautifulSoup(self.driver.page_source, "lxml")
                 spans = bs.find_all("span",
