@@ -612,8 +612,9 @@ class PhMiner:
                     """ no more buttons to click """
                     pass
                 except Exception as e:
-                    logger.error(str(e))
                     post = discussion_url.split('https://www.producthunt.com/posts/')[1]
+                    logger.error('Error retrieving badges of commenters for post \'%s\', see screenshot' % post)
+                    logger.error(str(e))
                     f = '{0}-store-badges-{1}.png'.format(post, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
                     self.driver.get_screenshot_as_file(filename=f)
                 bs = BeautifulSoup(self.driver.page_source, "lxml")
