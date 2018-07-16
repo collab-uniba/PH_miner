@@ -205,10 +205,10 @@ class PhMiner:
             self.user_scrape_update_pending = self.user_scrape_update_pending.union(set(
                 [maker.username for maker in post.makers]))
             self.user_scrape_update_pending.add(post.user.username)
-        except ProductHuntError as e:
-            logger.error('Error storing post with id \'%s\', see below' % post_id)
-            logger.error(e.error_message)
-            logger.error(e.status_code)
+        except ProductHuntError as phe:
+            logger.warning('Error storing post with id \'%s\'' % post_id)
+            logger.warning(phe.error_message)
+            logger.warning(phe.status_code)
 
     def store(self, post, day):
         self._store_post(post, day)
