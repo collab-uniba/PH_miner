@@ -676,6 +676,7 @@ if __name__ == '__main__':
                   '[--h|--help]'
     logger = logging_config.get_logger(_dir=now, name="ph_miner", console_level=logging.INFO)
 
+    exit_code = 0
     try:
         opts, _ = getopt(sys.argv[1:], "hd:p:nu", ["help", "day=", "postid=", "newest", "update"])
         for opt, arg in opts:
@@ -695,7 +696,7 @@ if __name__ == '__main__':
         """ print help information and exit: """
         logger.error(str(ge))
         print(help_string)
-        exit(1)
+        exit_code = 1
 
     try:
         logger.info("Creating Product Hunt app")
@@ -719,13 +720,13 @@ if __name__ == '__main__':
             launcher.set_user_profiles_crawler(user_ids=users_scraper_pending)
             launcher.start(parsed_user_names=user_details_parsed_today)
             logger.info("Done")
-            exit(0)
+            exit_code = 0
         if newest:
             logger.info("Retrieving newest posts of %s available now" % now)
             phm = PhMiner(s, ph_client, now, now_dt)
             phm.get_newest_posts()
             logger.info("Done")
-            exit(0)
+            exit_code = 0
         elif day and day_dt:
             logger.info("Retrieving daily posts of %s" % day)
             phm = PhMiner(s, ph_client, day, day_dt, user_details_parsed_today, users_scraper_pending)
@@ -736,7 +737,7 @@ if __name__ == '__main__':
             launcher.set_user_profiles_crawler(user_ids=users_scraper_pending)
             launcher.start(parsed_user_names=user_details_parsed_today)
             logger.info("Done")
-            exit(0)
+            exit_code = 0
         if update:
             """
             retrieve the list of days up to two weeks ago, and re-mine posts up to then altogether, so as to reduce the
@@ -763,7 +764,7 @@ if __name__ == '__main__':
             """ finally, launch all the queued crawlers """
             launcher.start(parsed_user_names=user_details_parsed_today)
             logger.info("Done")
-            exit(0)
+            exit_code = 0
         elif now and now_dt:
             """ analyze today's featured post """
             logger.info("Retrieving daily featured posts of %s" % now)
@@ -785,14 +786,15 @@ if __name__ == '__main__':
             logger.info("Scraping pending updates for users")
             launcher.start(parsed_user_names=user_details_parsed_today)
             logger.info("Done")
-            exit(0)
+            exit_code = 0
     except KeyboardInterrupt:
         logger.error("Received Ctrl-C or other break signal. Exiting.")
-        exit(-1)
+        exit_code = -1
     except Exception as e:
         logger.exception('Unexpected exception:\n' + str(e))
-        exit(-2)
+        exit_code = -2
     finally:
         """ in any case, we force quitting the webdriver"""
         if phm:
             phm.clean_up()
+        exit(exit_code)
