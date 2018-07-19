@@ -612,7 +612,7 @@ class PhMiner:
                     """ no more buttons to click """
                     pass
                 except Exception as e:
-                    post = discussion_url.split('https://www.producthunt.com/posts/')[1]
+                    post = discussion_url.split('https://www.producthunt.com/posts/')[1].split('?')[0]
                     logger.error('Error retrieving badges of commenters for post \'%s\', see screenshot' % post)
                     logger.error(str(e))
                     f = '{0}-store-badges-{1}.png'.format(post, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
