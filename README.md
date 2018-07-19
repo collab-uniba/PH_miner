@@ -9,8 +9,10 @@ $ git submodule update
 ```
 
 ## Setup
-1. Register your app using the [dashboard](https://www.producthunt.com/v1/oauth/applications).
-2. In the root folder, create the file `credentials.yml` with the following structure:
+1. Register two apps using the [dashboard](https://www.producthunt.com/v1/oauth/applications), `PH_miner` and 
+`PH_updater`.
+
+2. For the first app, in the root folder, create the file `credentials_miner.yml` with the following structure:
 ```yaml
 api:
   key: CLIENT_KEY
@@ -19,7 +21,9 @@ api:
   dev_token: DEVELOPER_TOKEN
 ```
 
-3. Create the folder `db/cfg/`, then create therein the file `dbsetup.yml` to setup the connection to the MySQL database:
+3. For the second app, follow the same steps as above to create the file `credentials_updater.yml`.
+
+4. Create the folder `db/cfg/`, then create therein the file `dbsetup.yml` to setup the connection to the MySQL database:
 ```yaml
 mysql:
     host: 127.0.0.1
@@ -33,12 +37,12 @@ mysql:
 is fine, since the `wait_timeout` is set to 28800 by default. But, if you're using Maria DB, then `wait_timeout` is set
 by default to 600 seconds. Edit the `my.cnf` file and change it to anything larger than the value chosen for `pool_recycle`.
 
-4. Install packages via pip:
+5. Install packages via pip:
 ```bash
 $ pip install -r requirements.txt
 ```
 
-5. Enable execution via crontab:
+6. Enable execution via crontab:
 ```bash
 $ crontab -e
 ```
@@ -51,12 +55,12 @@ SHELL=bash
     05    20       *          *       *       /path/.../to/PH_miner/cronjob.sh --update >> /var/log/ph_miner_updates.log 2>&1
     */30   *       *          *       *       /path/.../to/PH_miner/cronjob.sh --newest >> /var/log/ph_miner.log 2>&1
 ```
-6. Enable the rotation of the log files:
+7. Enable the rotation of the log files:
 ```bash
 $ sudo ln -s ph_miner.logrotate /etc/logrotate.d/ph_miner
 ```
 
-7. Install Chromium browser and the chromedriver
+8. Install Chromium browser and the chromedriver
 
 This step depends on the OS. On Ubuntu boxes, run:
 ```bash

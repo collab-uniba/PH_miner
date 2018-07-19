@@ -100,7 +100,7 @@ ENV/
 # mypy
 .mypy_cache/
 .idea/
-credentials.yml
+credentials*.yml
 dbsetup.yml
 log/
 .DS_Store

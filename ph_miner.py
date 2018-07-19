@@ -672,13 +672,14 @@ if __name__ == '__main__':
     update = False
     pid = None
     phm = None
+    ph_credentials = 'credentials_miner.yml'
     help_string = 'Usage:\n\tpython ph_miner.py [-d|--day=<YYYY-MM-DD>] [-p|--postid=N] [-n|--newest] [-u|--update] ' \
-                  '[--h|--help]'
+                  '[-c|--credentials=credentials.yml] [--h|--help]'
     logger = logging_config.get_logger(_dir=now, name="ph_miner", console_level=logging.INFO)
 
     exit_code = 0
     try:
-        opts, _ = getopt(sys.argv[1:], "hd:p:nu", ["help", "day=", "postid=", "newest", "update"])
+        opts, _ = getopt(sys.argv[1:], "hd:p:nuc:", ["help", "day=", "postid=", "newest", "update", "credentials"])
         for opt, arg in opts:
             if opt in ("-h", "--help"):
                 print(help_string)
@@ -692,6 +693,8 @@ if __name__ == '__main__':
                 newest = True
             elif opt in ("-u", "--update"):
                 update = True
+            elif opt in ("-c", "--credentials"):
+                ph_credentials = arg
     except GetoptError as ge:
         """ print help information and exit: """
         logger.error(str(ge))
@@ -700,7 +703,7 @@ if __name__ == '__main__':
 
     try:
         logger.info("Creating Product Hunt app")
-        ph_client = setup_ph_client('credentials.yml')
+        ph_client = setup_ph_client(ph_credentials)
         rl, rt = ph_client.get_rate_limit_remaining()
         logger.info("API calls remaining %s (%s min to reset)" % (rl, int(rt / 60)))
 
