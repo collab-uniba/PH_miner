@@ -679,7 +679,7 @@ if __name__ == '__main__':
 
     exit_code = 0
     try:
-        opts, _ = getopt(sys.argv[1:], "hd:p:nuc:", ["help", "day=", "postid=", "newest", "update", "credentials"])
+        opts, _ = getopt(sys.argv[1:], "hd:p:nuc:", ["help", "day=", "postid=", "newest", "update", "credentials="])
         for opt, arg in opts:
             if opt in ("-h", "--help"):
                 print(help_string)
