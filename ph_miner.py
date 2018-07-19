@@ -606,7 +606,7 @@ class PhMiner:
                     while btn:
                         self.driver.find_element_by_css_selector(
                             '.button_30e5c.fluidSize_c4dc2.mediumSize_c215f.simpleVariant_8a863').click()
-                        time.sleep(5)
+                        time.sleep(10)
                         btn = self.driver.find_element_by_xpath('//div[@class="loadMore_f1388"]/button')
                 except NoSuchElementException:
                     """ no more buttons to click """
