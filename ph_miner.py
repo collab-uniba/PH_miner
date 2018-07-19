@@ -724,7 +724,7 @@ if __name__ == '__main__':
             launcher.start(parsed_user_names=user_details_parsed_today)
             logger.info("Done")
             exit_code = 0
-        if newest:
+        elif newest:
             logger.info("Retrieving newest posts of %s available now" % now)
             phm = PhMiner(s, ph_client, now, now_dt)
             phm.get_newest_posts()
@@ -741,7 +741,7 @@ if __name__ == '__main__':
             launcher.start(parsed_user_names=user_details_parsed_today)
             logger.info("Done")
             exit_code = 0
-        if update:
+        elif update:
             """
             retrieve the list of days up to two weeks ago, and re-mine posts up to then altogether, so as to reduce the
             number of calls to ph_client.user_details_once_a_day(), which is very time-consuming
