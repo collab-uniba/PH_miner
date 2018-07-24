@@ -6,6 +6,7 @@
 # See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 
 import logging
+import os
 from time import sleep
 
 from pytz import timezone
@@ -16,8 +17,8 @@ from ph_miner import setup_db, setup_ph_client
 from ph_py.error import ProductHuntError
 from .items import ReviewItem, UserItem
 
-db_config_file = '../../db/cfg/dbsetup.yml'
-ph_config_file = '../../credentials.yml'
+db_config_file = os.environ['DB_CONFIG']
+ph_config_file = os.environ['PH_CREDENTIALS']
 logger = logging.getLogger('scrapy_pipes')
 
 
@@ -291,19 +292,37 @@ class UserCrawlerPipeline(object):
         if user_id:
             try:
                 user = self.session.query(User).filter_by(id=user_id).one()
-                user.badges = item['badges']
-                if item['daily_upvote_streak']:
-                    user.daily_upvote_streak = item['daily_upvote_streak']
-                user.collections_followed_count = int(item['collections_followed_count'])
+                try:
+                    user.badges = item['badges']
+                except KeyError:
+                    logger.log(level=logging.WARN, msg="No badges found for user \'%s\'" % user_id)
+                try:
+                    if item['daily_upvote_streak']:
+                        user.daily_upvote_streak = item['daily_upvote_streak']
+                except KeyError:
+                    logger.log(level=logging.WARN, msg="No upvote streak found for user \'%s\'" % user_id)
+                try:
+                    user.collections_followed_count = int(item['collections_followed_count'])
+                except KeyError:
+                    logger.log(level=logging.WARN, msg="No collections followed count found for user \'%s\'" % user_id)
                 self.session.add(user)
             except exc.NoResultFound:
                 logger.log(level=logging.ERROR, msg="No result found querying User table by id: %s" % user_id)
             try:
                 user_history = self.session.query(UserHistory).filter_by(user_id=user_id, date=self.today).one()
-                user_history.badges = item['badges']
-                if item['daily_upvote_streak']:
-                    user_history.daily_upvote_streak = item['daily_upvote_streak']
-                user_history.collections_followed_count = int(item['collections_followed_count'])
+                try:
+                    user_history.badges = item['badges']
+                except KeyError:
+                    logger.log(level=logging.WARN, msg="No badges found for user \'%s\'" % user_id)
+                try:
+                    if item['daily_upvote_streak']:
+                        user_history.daily_upvote_streak = item['daily_upvote_streak']
+                except KeyError:
+                    logger.log(level=logging.WARN, msg="No upvote streak found for user \'%s\'" % user_id)
+                try:
+                    user_history.collections_followed_count = int(item['collections_followed_count'])
+                except KeyError:
+                    logger.log(level=logging.WARN, msg="No collections followed count found for user \'%s\'" % user_id)
                 self.session.add(user_history)
             except exc.NoResultFound:
                 logger.log(level=logging.DEBUG, msg="No result found querying UserHistory table by id: %s" % user_id)

@@ -701,6 +701,10 @@ if __name__ == '__main__':
         print(help_string)
         exit_code = 1
 
+    """ set up environment vars """
+    os.environ['DB_CONFIG'] = os.path.abspath('db/cfg/dbsetup.yml')
+    os.environ['PH_CREDENTIALS'] = os.path.abspath(ph_credentials)
+
     try:
         logger.info("Creating Product Hunt app")
         ph_client = setup_ph_client(ph_credentials)
@@ -708,7 +712,7 @@ if __name__ == '__main__':
         logger.info("API calls remaining %s (%s min to reset)" % (rl, int(rt / 60)))
 
         logger.info("Creating a new database connection and initializing tables")
-        s = setup_db('db/cfg/dbsetup.yml')
+        s = setup_db(os.environ['DB_CONFIG'])
 
         user_details_parsed_today = dict()
         users_scraper_pending = set()
