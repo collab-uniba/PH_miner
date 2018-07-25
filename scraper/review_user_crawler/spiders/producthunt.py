@@ -167,7 +167,7 @@ class UserSpider(CrawlSpider):
         """ explicit wait for page to load """
         try:
             user_item = UserItem()
-            username = response.url.split('https://www.producthunt.com')[1]
+            username = response.url.split('https://www.producthunt.com/')[1]
             try:
                 _id = scrapy.Selector(text=self.driver.page_source).xpath(
                     '//span[@class="font_9d927 white_ce488 small_231df normal_d2e66 lineHeight_042f1 underline_57d3c"]/text()').extract()[1]
