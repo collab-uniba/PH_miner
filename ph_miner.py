@@ -111,11 +111,8 @@ class PhMiner:
                     if res:
                         post_id = int(res[0])
                         post_ids.append(post_id)
-                        """ include yesterday as there can be issues for post created around midnight of prev day """
-                        yesterday = (self.today_dt - timedelta(days=1)).strftime("%Y-%m-%d")
-                        np = self.session.query(NewestPost).filter_by(post_id=post_id).filter(
-                            or_(NewestPost.day == self.today,
-                                NewestPost.day == yesterday)).one_or_none()
+                        """ remove day = self.today for posts created before may resurface on current day """
+                        np = self.session.query(NewestPost).filter_by(post_id=post_id).one_or_none()
                         if not np:
                             np = NewestPost(post_id, self.today, discussion_urls[i])
                             self.session.add(np)
