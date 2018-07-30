@@ -92,6 +92,7 @@ class PhMiner:
             bs = BeautifulSoup(self.driver.page_source, "lxml")
             posts = bs.find_all("ul", {"class": "postsList_b2208"})
             posts = posts[len(posts) - 1].contents
+            logger.info('Parsing %d posts' % len(posts))
             for post in posts:
                 try:
                     extract = post.find_all("a", {"class": "link_523b9"})[0]['href'][7:]
@@ -122,6 +123,7 @@ class PhMiner:
                         logger.warning('No id found for post \'%s\' (likely a promoted post), skipping it' % slug)
                         slugs.remove(slug)
                         discussion_urls.remove(discussion_urls[i])
+                        i -= 1  # else raises an IndexError exception
                 except IndexError as ie:
                     logger.error(str(ie) + 'Processing \'{0}\' (iteration \'{1}\')'.format(slug, i))
                 except Exception as e:
