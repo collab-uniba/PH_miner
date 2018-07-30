@@ -123,7 +123,7 @@ class PhMiner:
                         slugs.remove(slug)
                         discussion_urls.remove(discussion_urls[i])
                 except IndexError as ie:
-                    logger.error(str(ie))
+                    logger.error(str(ie) + 'Processing \'%s\' (iteration \'%d\')'.format(slug, i))
                 except Exception as e:
                     logger.error(str(e))
             self.session.commit()
