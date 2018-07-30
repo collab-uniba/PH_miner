@@ -66,8 +66,12 @@ class ReviewSpider(CrawlSpider):
                     '//a[@href="%s/followed_collections"]/em/text()' % username).extract()[0]
             except IndexError:
                 self.logger.warning('Index error parsing collections followed of user \'%s\', recovering...' % username)
-                collections_followed_count = scrapy.Selector(text=self.driver.page_source).xpath(
-                    '//a[@href="/%s/followed_collections"]/em/text()' % username).extract()[0]
+                try:
+                    collections_followed_count = scrapy.Selector(text=self.driver.page_source).xpath(
+                        '//a[@href="/%s/followed_collections"]/em/text()' % username).extract()[0]
+                except IndexError:
+                    self.logger.error('Unrecoverable IndexError parsing collections followed of user \'%s\'' % username)
+                    collections_followed_count = -1
             review_item['reviewer_badges'] = None
             review_item['reviewer_daily_upvote_streak'] = streak
             review_item['reviewer_collections_followed_count'] = collections_followed_count
@@ -170,7 +174,8 @@ class UserSpider(CrawlSpider):
             username = response.url.split('https://www.producthunt.com/')[1]
             try:
                 _id = scrapy.Selector(text=self.driver.page_source).xpath(
-                    '//span[@class="font_9d927 white_ce488 small_231df normal_d2e66 lineHeight_042f1 underline_57d3c"]/text()').extract()[1]
+                    '//span[@class="font_9d927 white_ce488 small_231df normal_d2e66 lineHeight_042f1 underline_57d3c"]/text()').extract()[
+                    1]
                 user_item['id'] = _id
             except IndexError:
                 self.logger.error('Index error extracting the user id of \'%s\'' % username)
@@ -185,9 +190,13 @@ class UserSpider(CrawlSpider):
                 user_item['collections_followed_count'] = collections_followed_count
             except IndexError:
                 self.logger.warning('Index error parsing collections followed of user \'%s\', recovering...' % username)
-                collections_followed_count = scrapy.Selector(text=self.driver.page_source).xpath(
-                    '//a[@href="/%s/followed_collections"]/em/text()' % username).extract()[0]
-                user_item['collections_followed_count'] = collections_followed_count
+                try:
+                    collections_followed_count = scrapy.Selector(text=self.driver.page_source).xpath(
+                        '//a[@href="/%s/followed_collections"]/em/text()' % username).extract()[0]
+                    user_item['collections_followed_count'] = collections_followed_count
+                except IndexError:
+                    self.logger.error('Unrecoverable IndexError parsing collections followed of user \'%s\'' % username)
+                    user_item['collections_followed_count'] = -1
             user_item['badges'] = None
             yield user_item
 
