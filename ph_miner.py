@@ -47,6 +47,7 @@ from pytz import timezone
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException, NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
+from sqlalchemy import or_
 from sqlalchemy.orm import exc
 
 from db import SessionWrapper
@@ -93,9 +94,9 @@ class PhMiner:
             posts = posts[len(posts) - 1].contents
             for post in posts:
                 try:
-                    extract = post.find_all("a", {"class": "link_523b9"})[0]['href'].split('posts')[1]
-                    slugs.append(extract[1:])
-                    discussion_urls.append('https://www.producthunt.com/posts' + extract)
+                    extract = post.find_all("a", {"class": "link_523b9"})[0]['href'][7:]
+                    slugs.append(extract)
+                    discussion_urls.append('https://www.producthunt.com/posts/' + extract)
                 except IndexError:
                     pass  # ignore promoted posts
 
@@ -109,13 +110,18 @@ class PhMiner:
                     if res:
                         post_id = int(res[0])
                         post_ids.append(post_id)
-                        np = self.session.query(NewestPost).filter_by(post_id=post_id, day=self.today).one_or_none()
+                        """ include yesterday as there can be issues for post created around midnight """
+                        yesterday = (self.today_dt - timedelta(days=1)).strftime("%Y-%m-%d")
+                        np = self.session.query(NewestPost).filter_by(post_id=post_id).filter(
+                            or_(NewestPost.day == self.today,
+                                NewestPost.day == yesterday)).one_or_none()
                         if not np:
                             np = NewestPost(post_id, self.today, discussion_urls[i])
                             self.session.add(np)
                     else:
                         logger.warning("No id found for post \'%s\', removing" % slug)
                         slugs.remove(slug)
+                        discussion_urls.remove(discussion_urls[i])
                 except IndexError as ie:
                     logger.error(str(ie))
                 except Exception as e:
@@ -131,15 +137,18 @@ class PhMiner:
                 time.sleep(10)
                 bs = BeautifulSoup(self.driver.page_source, "lxml")
                 posts = bs.find_all("a", {"class": "item_6443c"})
-                logger.info("Retrieving social link for post \'%s\'" % slugs[i])
-                for p in posts:
-                    title = p['title']
-                    href = p['href']
-                    link = self.session.query(PostSocialLinks).filter_by(post_id=post_ids[i],
-                                                                         site=title).one_or_none()
-                    if not link:
-                        link = PostSocialLinks(post_ids[i], title, href)
+                try:
+                    logger.info('Retrieving social link for post \'%s\'' % slugs[i])
+                    for p in posts:
+                        title = p['title']
+                        href = p['href']
+                        link = self.session.query(PostSocialLinks).filter_by(post_id=post_ids[i],
+                                                                             site=title).one_or_none()
+                        if not link:
+                            link = PostSocialLinks(post_ids[i], title, href)
                         self.session.add(link)
+                except IndexError:
+                    logger.error('Index error retrieving social link for post \'%s\'' % slugs[i])
             self.session.commit()
         except TimeoutException:
             logger.error('Timeout error waiting for resolution of {0}'.format(url))
