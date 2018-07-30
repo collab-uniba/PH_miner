@@ -57,7 +57,7 @@ SHELL=bash
 ```
 7. Enable the rotation of the log files:
 ```bash
-$ sudo ln -s /etc/logrotate.d/ph_miner ph_miner.logrotate
+$ sudo ln -s /fullpath/to/../ph_miner.logrotate /etc/logrotate.d/ph_miner 
 ```
 
 8. Install Chromium browser and the chromedriver
