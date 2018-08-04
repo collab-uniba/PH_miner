@@ -76,13 +76,14 @@ class ReviewCrawlerPipeline(object):
                         except exc.NoResultFound:
                             logger.log(logging.ERROR, msg="No result found querying post \'%s\' (%s)" % (post.name,
                                                                                                          post.id))
-                        # if we're scraping a post reviews, then the post history for today must be in the db
+                        # if we're scraping a post reviews, then the post history for today should be in the db
+                        # unless we're going way back in time, before it was even featured
                         try:
                             ph = self.session.query(PostHistory).filter_by(post_id=post.id, date=self.today).one()
                             ph.overall_score = item['product_score']
                             self.session.add(ph)
                         except exc.NoResultFound:
-                            logger.log(logging.ERROR,
+                            logger.log(logging.WARNING,
                                        "No result found querying history of post \'%s\' (%s) on %s" % (post.name,
                                                                                                        post.id,
                                                                                                        self.today))
