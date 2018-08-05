@@ -106,10 +106,10 @@ class PhMiner:
                 i += 1
                 logger.info("Retrieving id for post \'%s\'" % slug)
                 try:
-                    _str = bs.find_all('script')[13].get_text()
-                    res = re.findall(pattern=r'"shortened_url":"/r/p/(\d{6})","slug":"%s"' % slug, string=_str)
+                    _str = bs.find_all('div', {'class': 'item_54fdd'})[i]
+                    res = _str.attrs['data-test'].split('post-item-')[1]
                     if res:
-                        post_id = int(res[0])
+                        post_id = int(res)
                         post_ids.append(post_id)
                         """ remove day = self.today for posts created before may resurface on current day """
                         np = self.session.query(NewestPost).filter_by(post_id=post_id).one_or_none()
