@@ -759,10 +759,10 @@ if __name__ == '__main__':
             number of calls to ph_client.user_details_once_a_day(), which is very time-consuming
             """
             launcher = CrawlersLauncher(session=s)
-            one_week_ago_dt = now_dt - datetime.timedelta(weeks=1)
-            logger.info("Updating history of both featured and non-featured posts up to one week ago (%s)"
-                        % one_week_ago_dt.strftime("%Y-%m-%d"))
-            ith_day_dt = one_week_ago_dt
+            three_days_ago_dt = now_dt - datetime.timedelta(days=5)
+            logger.info("Updating history of both featured and non-featured posts up to 3 days ago (%s)"
+                        % three_days_ago_dt.strftime("%Y-%m-%d"))
+            ith_day_dt = three_days_ago_dt
             while ith_day_dt < now_dt:
                 ith_day = ith_day_dt.strftime("%Y-%m-%d")
                 """ first update history from API """
