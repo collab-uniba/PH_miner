@@ -448,7 +448,7 @@ class ExternalLink(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=False)
     post_id = Column(BigInteger, primary_key=True, autoincrement=False)
     url = Column(String(512), nullable=False)
-    title = Column(String(512), nullable=False)
+    title = Column(UnicodeText, nullable=False)
     source = Column(String(128))
     author = Column(String(128))
     headline = Column(UnicodeText)
