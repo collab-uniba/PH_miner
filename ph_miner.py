@@ -156,43 +156,33 @@ class PhMiner:
             logger.error(str(wde))
             self.driver.save_screenshot('webdriver_%s.png' % url)
 
-    def get_post(self, post_id):
+    def get_post_by_id(self, post_id):
         if not self.user_details_once_a_day:
             self.user_details_once_a_day = set()
         self.meta_store(post_id)
         return self.user_details_once_a_day, self.user_scrape_update_pending
 
-    def get_todays_featured_posts(self):
+    def get_featured_posts_by_day(self, _day):
         if not self.user_details_once_a_day:
             self.user_details_once_a_day = set()
         self.phc.wait_if_no_rate_limit_remaining()
-        daily_posts = [post.id for post in self.phc.get_todays_posts()]
+        daily_posts = [post.id for post in self.phc.get_specific_days_posts(_day)]
         """ get details for each post by id """
         for post_id in daily_posts:
             self.meta_store(post_id)
         return self.user_details_once_a_day, self.user_scrape_update_pending
 
-    def get_featured_posts_at(self, day):
-        if not self.user_details_once_a_day:
-            self.user_details_once_a_day = set()
-        self.phc.wait_if_no_rate_limit_remaining()
-        daily_posts = [post.id for post in self.phc.get_specific_days_posts(day)]
-        """ get details for each post by id """
-        for post_id in daily_posts:
-            self.meta_store(post_id)
-        return self.user_details_once_a_day, self.user_scrape_update_pending
-
-    def get_todays_non_featured_posts(self):
+    def get_non_featured_posts_by_day(self, _day):
         if not self.user_details_once_a_day:
             self.user_details_once_a_day = set()
         """ today's newest posts... """
-        todays_newest_posts = self.session.query(NewestPost.post_id).filter_by(day=self.today).all()
+        newest_posts = self.session.query(NewestPost.post_id).filter_by(day=_day).all()
         """ ... that are *NOT* featured, i.e., not in Post table """
-        todays_featured = self.session.query(Post.id).filter_by(day=self.today).all()
+        featured = self.session.query(Post.id).filter_by(day=_day).all()
         """ get details for each non-featured today's post """
-        todays_non_featured_posts = set(todays_newest_posts) - set(todays_featured)
-        logger.debug("There are %d non-featured posts to retrieve", len(todays_non_featured_posts))
-        for post_id in todays_non_featured_posts:
+        non_featured_posts = set(newest_posts) - set(featured)
+        logger.debug("There are %d non-featured posts to retrieve", len(non_featured_posts))
+        for post_id in non_featured_posts:
             self.meta_store(post_id)
         return self.user_details_once_a_day, self.user_scrape_update_pending
 
@@ -728,7 +718,7 @@ if __name__ == '__main__':
         if pid:
             logger.info("Retrieving single post %s" % str(pid))
             phm = PhMiner(s, ph_client, now, now_dt, user_details_parsed_today, users_scraper_pending)
-            user_details_parsed_today, users_scraper_pending = phm.get_post(pid)
+            user_details_parsed_today, users_scraper_pending = phm.get_post_by_id(pid)
             logger.info("Retrieving review for post %d as of %s" % (pid, now))
             launcher = CrawlersLauncher(session=s)
             launcher.setup_single_post_reviews(pid=pid)
@@ -745,7 +735,7 @@ if __name__ == '__main__':
         elif day and day_dt:
             logger.info("Retrieving daily posts of %s" % day)
             phm = PhMiner(s, ph_client, day, day_dt, user_details_parsed_today, users_scraper_pending)
-            user_details_parsed_today, users_scraper_pending = phm.get_featured_posts_at(day)
+            user_details_parsed_today, users_scraper_pending = phm.get_featured_posts_by_day(day)
             logger.info("Retrieving reviews for daily posts of %s" % day)
             launcher = CrawlersLauncher(session=s)
             launcher.setup_post_reviews_crawler(day=day)
@@ -784,12 +774,12 @@ if __name__ == '__main__':
             """ analyze today's featured post """
             logger.info("Retrieving daily featured posts of %s" % now)
             phm = PhMiner(s, ph_client, now, now_dt, user_details_parsed_today, users_scraper_pending)
-            phm.get_todays_featured_posts()
+            phm.get_featured_posts_by_day(_day=now)
             """
             analyze daily posts (newest) that didn't make it to the popular list (featured)
             """
             logger.info("Retrieving daily non-featured posts of %s" % now)
-            user_details_parsed_today, users_scraper_pending = phm.get_todays_non_featured_posts()
+            user_details_parsed_today, users_scraper_pending = phm.get_non_featured_posts_by_day(_day=now)
             """
             now scrape pending content for all of today's posts, both featured and not-featured
             """
