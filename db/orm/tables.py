@@ -282,7 +282,7 @@ class User(Base):
     name = Column(String(128), nullable=False)
     headline = Column(String(512))
     created_at = Column(DateTime, nullable=False)
-    username = Column(String(128), nullable=False, unique=True)
+    username = Column(String(128), nullable=False)
     image_url = Column(String(512))
     profile_url = Column(String(512))
     twitter_username = Column(String(256))
