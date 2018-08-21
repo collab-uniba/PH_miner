@@ -163,7 +163,8 @@ class UserSpider(CrawlSpider):
         if start_urls:
             self.start_urls = start_urls
         else:
-            self.start_urls = ['https://www.producthunt.com/@rrhoover',
+            self.start_urls = ['https://www.producthunt.com/@alexandru_constantinescu',
+                               'https://www.producthunt.com/@rrhoover',
                                'https://www.producthunt.com/@chrismessina']  # for debugging purposes only
 
     def parse(self, response):
@@ -172,6 +173,12 @@ class UserSpider(CrawlSpider):
         try:
             user_item = UserItem()
             username = response.url.split('https://www.producthunt.com/')[1]
+            """ workaround, sometimes split return names with a leading '/'
+                this causes the rest of the script to fail
+                it happens very seldom, haven't found the root cause yet
+            """
+            if username[0] == '/':
+                username = username[1:]
             try:
                 _id = scrapy.Selector(text=self.driver.page_source).xpath(
                     '//span[@class="font_9d927 white_ce488 small_231df normal_d2e66 lineHeight_042f1 underline_57d3c"]/text()').extract()[
