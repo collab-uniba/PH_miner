@@ -173,7 +173,7 @@ class UserSpider(CrawlSpider):
         try:
             user_item = UserItem()
             username = response.url.split('https://www.producthunt.com/')[1]
-            """ workaround, sometimes split return names with a leading '/'
+            """ workaround, sometimes split returns names with a leading '/'
                 this causes the rest of the script to fail
                 it happens very seldom, haven't found the root cause yet
             """
