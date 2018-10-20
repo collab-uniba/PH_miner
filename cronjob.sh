@@ -22,4 +22,5 @@ cd "$(dirname "$0")";
 # source activate <environment name>
 source .env/bin/activate
 sh run.sh $@
+# for conda, change to: source deactivate
 deactivate
