@@ -11,7 +11,10 @@ def get_logger(_dir, name, console_level):
         return loggers.get(name)
     else:
         _dir = os.path.join('log', _dir)
-        os.makedirs(_dir, exist_ok=True)
+        try:
+            os.makedirs(_dir)
+        except FileExistsError:  # safe to ignore exist
+            pass
         logger = logging.getLogger(name)
         logger.setLevel(logging.DEBUG)
 
