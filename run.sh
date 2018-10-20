@@ -12,6 +12,7 @@ if [ -z "$1" ]; then
     # anything != 0 is error
     if [ "$exit_code" -ne 0 ]; then
         echo "$DATE" >> "$ERRORED_FILE"
+        echo "[PH_miner] error on $DATE" | /usr/sbin/ssmtp xxxxxxx@gmail.com
     else
         echo "$DATE" >> "$DONE_FILE"
     fi
