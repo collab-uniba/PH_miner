@@ -377,6 +377,8 @@ class PhMiner:
                         b = Hunts(hunter.id, post.id)
                         self.session.add(b)
                     self.session.commit()
+            except KeyError as ke:
+                logger.error(str(ke))
             except ProductHuntError as e:
                 logger.error(str(e))
         else:
@@ -400,6 +402,8 @@ class PhMiner:
                                 logger.debug("Adding app %s made by %s" % (post.id, maker.id))
                                 b = Apps(maker.id, post.id)
                                 self.session.add(b)
+                        except KeyError as ke:
+                            logger.error(str(ke))
                         except ProductHuntError as e:
                             logger.error(str(e))
                 else:
@@ -584,6 +588,8 @@ class PhMiner:
                         if user:
                             self.user_details_once_a_day.add(user.username)
                             self._store_user(user)
+                    except KeyError as ke:
+                        logger.error(str(ke))
                     except ProductHuntError as e:
                         logger.error(str(e))
                 else:
