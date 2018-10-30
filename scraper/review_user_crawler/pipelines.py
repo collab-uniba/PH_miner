@@ -274,6 +274,8 @@ class ReviewUserCrawlerPipeline(object):
                     self.session.add(uh)
 
                     self.session.commit()
+            except KeyError as ke:
+                logger.log(level=logging.ERROR, msg=str(ke))
             except ProductHuntError as phe:
                 logger.log(level=logging.ERROR, msg=str(phe))
 
