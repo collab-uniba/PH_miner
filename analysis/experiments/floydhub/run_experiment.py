@@ -68,7 +68,7 @@ def build_model():
 
     model.compile(loss='mean_squared_error',
                   optimizer=optimizer,
-                  metrics=['mean_absolute_error', 'mean_squared_error'])
+                  metrics=['accuracy'])
     return model
 
 
@@ -112,7 +112,7 @@ def plot_history(history):
     plt.legend()
     plt.show()
 
-
+from tensorflow.python import Tensor
 model = build_model()
 
 # The patience parameter is the amount of epochs to check for improvement
@@ -121,26 +121,16 @@ early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 history = model.fit(normed_train_data, train_labels, epochs=EPOCHS,
                     validation_split=0.3, verbose=0, callbacks=[early_stop])
 
-plot_history(history)
+#plot_history(history)
 
-loss, mae, mse = model.evaluate(normed_test_data, test_labels, verbose=0)
+#loss, mae, mse = model.evaluate(normed_test_data, test_labels, verbose=0)
 
-print("Testing set Mean Abs Error: {:5.2f} score".format(mae))
+#print("Testing set Mean Abs Error: {:5.2f} score".format(mae))
+
+test_loss, test_acc = model.evaluate(normed_test_data, test_labels)
+
+print('Test accuracy:', test_acc)
 
 test_predictions = model.predict(normed_test_data).flatten()
 
-plt.scatter(test_labels, test_predictions)
-plt.xlabel('True Values [score]')
-plt.ylabel('Predictions [score]')
-plt.axis('equal')
-plt.axis('square')
-plt.xlim([0,plt.xlim()[1]])
-plt.ylim([0,plt.ylim()[1]])
-_ = plt.plot([-100, 100], [-100, 100])
-plt.show()
 
-error = test_predictions - test_labels
-plt.hist(error, bins = 25)
-plt.xlabel("Prediction Error [score]")
-_ = plt.ylabel("Count")
-plt.show()
