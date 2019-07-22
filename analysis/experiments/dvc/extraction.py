@@ -134,7 +134,7 @@ def write_all_features(outfile, _entries):
     writer.close()
 
 
-def main():
+if __name__ == '__main__':
     """ set up logging """
     now = datetime.datetime.now(timezone('US/Pacific')).strftime("%Y-%m-%d")
     logger = logging_config.get_logger(_dir=now, name="ph_feature_extraction", console_level=logging.ERROR)
@@ -142,13 +142,8 @@ def main():
     """ set up environment vars """
     os.environ['DB_CONFIG'] = os.path.abspath('db/cfg/dbsetup.yml')
     session = setup_db(os.environ['DB_CONFIG'])
-    os.environ['FEATURES'] = os.path.abspath('features.csv')
+    os.environ['FEATURES'] = os.path.abspath('temp.csv')
 
     entries = extract_all_features(session, logger)
     entries = clean_all_features(entries)
     write_all_features(os.environ['FEATURES'], entries)
-
-
-if __name__ == '__main__':
-    main()
-    exit(0)

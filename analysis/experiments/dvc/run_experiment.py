@@ -1,4 +1,5 @@
-from comet_ml import Experiment
+import json
+
 import numpy
 import pandas
 import seaborn
@@ -8,8 +9,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 
-experiment = Experiment(api_key="0grSL4DNNTlQLkFNuVEnLOd2m",
-                        project_name="producthint", workspace="bateman")
 seed = 0
 
 df = pandas.read_csv('../../../features.csv',
@@ -32,7 +31,6 @@ seaborn.heatmap(corr, cmap=colormap, annot=True, fmt=".2f", mask=dropSelf)
 pyplot.xticks(range(len(corr.columns)), corr.columns)
 pyplot.yticks(range(len(corr.columns)), corr.columns)
 pyplot.savefig('corrmatrix.png')
-experiment.log_image(name='correlation matrix', image_data='corrmatrix.png', image_format='png')
 
 # build train and test sets
 cols = ['hunter_followers', 'hunter_has_website', 'maker_followers', 'maker_has_website']
@@ -41,9 +39,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, df.is_featured, test_size
                                                     stratify=df.is_featured)
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
-experiment.log_dataset_hash(X_train_scaled)
 X_test_scaled = scaler.transform(X_test)
-experiment.log_dataset_hash(X_test)
 
 # build logistic regression model
 logreg = LogisticRegression(random_state=seed)
@@ -69,7 +65,6 @@ pyplot.title('Confusion matrix', y=1.1)
 pyplot.ylabel('Actual')
 pyplot.xlabel('Predicted')
 pyplot.savefig('confmatrix.png')
-experiment.log_image(name='confusion matrix', image_data='confmatrix.png', image_format='png')
 
 acc = round(metrics.accuracy_score(y_test, y_pred), 3)
 prec = round(metrics.precision_score(y_test, y_pred), 3)
@@ -84,7 +79,6 @@ pyplot.plot(fpr, tpr, label="auc=" + str(round(auc, 3)))
 pyplot.legend(loc=4)
 pyplot.title('ROC')
 pyplot.savefig('rocplot.png')
-experiment.log_image(name='ROC plot', image_data='rocplot.png', image_format='png')
 
 # final logging
 params = {"random_state": seed,
@@ -93,15 +87,17 @@ params = {"random_state": seed,
           "param_grid": str(param_grid),
           "stratify": True
           }
-experiment.log_parameters(params)
+with open('hyperparams.json', 'w') as f:
+    f.write(json.dumps(params))
+    f.close()
+
 metrics = {
-    "confusion matrix": cnf_matrix,
     "f1": f1,
     "accuracy": acc,
     "recall": rec,
     "precision": prec,
     "AUC": auc
 }
-experiment.log_metrics(metrics)
-
-experiment.end()
+with open('metrics.json', 'w') as f:
+    f.write(json.dumps(metrics))
+    f.close()
