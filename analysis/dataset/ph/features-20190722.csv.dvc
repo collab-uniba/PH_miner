@@ -1,8 +1,0 @@
-wdir: .
-outs:
-- path: features-20190722.csv
-  metric: false
-  cache: true
-  persist: false
-  md5: 46c4077a438a7b75ff5be4657d593162
-md5: ce5e33225454a6babf1dea166eefc40a
