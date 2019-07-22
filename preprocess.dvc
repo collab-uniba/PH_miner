@@ -1,0 +1,8 @@
+wdir: analysis/experiments/dvc
+cmd: sh preprocess.sh
+deps:
+- path: features.csv
+  md5: b69acca1eda15737daf7f94265e03c14
+- path: preprocess.sh
+  md5: 7579002f0455607ed5264c2fd90fa978
+md5: e88240bb3224a303f52303508150358f

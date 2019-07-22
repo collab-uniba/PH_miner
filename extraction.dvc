@@ -1,0 +1,12 @@
+wdir: analysis/experiments/dvc
+cmd: sh extraction.sh
+outs:
+- path: features.csv
+  metric: false
+  cache: true
+  persist: false
+  md5: d27431ae2351af119626adbcfdf6f938
+deps:
+- path: extraction.py
+  md5: 6ee7dcda6c658b63571f96e47bf91774
+md5: f16d0563d7d22bbc8a5f068d2e381230
