@@ -1,0 +1,2 @@
+['remote "demo"']
+url = azure://DefaultEndpointsProtocol=https
