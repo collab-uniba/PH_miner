@@ -1,0 +1,34 @@
+wdir: analysis/experiments/dvc
+cmd: python run_experiment.py
+outs:
+- path: hyperparams.json
+  metric: false
+  cache: true
+  persist: false
+  md5: f15d5f184c23e1f02d7b86b95f9859b3
+- path: confmatrix.png
+  metric: false
+  cache: true
+  persist: false
+  md5: 9ccd4475ebb6aec1a363de4bf2e250d5
+- path: rocplot.png
+  metric: false
+  cache: true
+  persist: false
+  md5: 484f5f71f028f1b9d08a539e8331631f
+- path: corrmatrix.png
+  metric: false
+  cache: true
+  persist: false
+  md5: 971b4dc9b4f6fa0a491282c633309213
+- path: metrics.json
+  metric: true
+  cache: true
+  persist: false
+  md5: 60d23ad1f0efbb959ad16819da46233e
+deps:
+- path: features.csv
+  md5: b69acca1eda15737daf7f94265e03c14
+- path: run_experiment.py
+  md5: b30349e89c9854e0301ea4fc89672ed6
+md5: 881ae1bf5e40f9c9dad26e2889a50432
