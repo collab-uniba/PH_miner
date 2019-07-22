@@ -1,2 +1,4 @@
 ['remote "demo"']
 url = azure://DefaultEndpointsProtocol=https
+[core]
+remote = demo
