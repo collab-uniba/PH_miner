@@ -7,7 +7,14 @@ class CsvReader:
     A CSV reader which will read rows from CSV file "f",
     which is encoded in the given encoding.
     """
-    csv.field_size_limit(sys.maxsize)
+    max_int = sys.maxsize
+    while True:
+        # decrease the max_int value by factor 10 as long as the OverflowError occurs.
+        try:
+            csv.field_size_limit(max_int)
+            break
+        except OverflowError:
+            max_int = int(max_int / 10)
     reader = None
 
     def __init__(self, csv_file, mode='r'):
@@ -44,4 +51,3 @@ class CsvWriter:
 
     def flush(self):
         self.f.flush()
-
