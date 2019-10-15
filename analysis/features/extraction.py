@@ -31,6 +31,9 @@ from sqlalchemy import func
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.exc import MultipleResultsFound
 
+# Library used for excracting the sentiment of makers based on description posts and their comments
+from sentistrength import PySentiStr
+
 from pytz import timezone
 
 from csvio import CsvWriter
@@ -224,8 +227,24 @@ def __extract_questions(text):
     return _questions
 
 
+# Setup the path of SentiStrength tool
+def setup_sentistrength_path(s):
+    s.setSentiStrengthPath(os.getcwd() + '\\affect_resources\\SentiStrengthCom.jar')
+    s.setSentiStrengthLanguageFolderPath(os.getcwd() + '\\affect_resources\\SentiStrength_Data\\')
+
+
+def __extract_maker_sentiment(sentiment, text):
+    maker_sentiment = sentiment.getSentiment(text, score='binary')
+    return maker_sentiment
+
+
 def __aggregate(_posts, _media, _comments, session, logger):
     _entries = list()
+
+    # Initialize sentistrength variable
+    senti = PySentiStr()
+    setup_sentistrength_path(senti)
+
     for p in _posts:
         try:
             """ Id, name of a post """
@@ -254,7 +273,12 @@ def __aggregate(_posts, _media, _comments, session, logger):
             entry = entry + [launch_day, best_launch_time, best_launch_day, weekend]
 
             """ Presentation features """
+            entry = entry + [p.description]
             if p.description:
+                """ Extraction of maker sentiment based on the description of his post """
+                sentiment_description = __extract_maker_sentiment(senti, p.description)
+                entry = entry + [sentiment_description[0][0], sentiment_description[0][1], '', '', '']
+
                 # Text length
                 entry = entry + [len(p.description)]
 
@@ -277,7 +301,7 @@ def __aggregate(_posts, _media, _comments, session, logger):
                 emoji_description = __extract_emoji(p.description)
                 entry = entry + [emoji_description]
             else:
-                entry = entry + [0, 0, 'No', 'No']
+                entry = entry + [1, -1, '', '', '', 0, 0, 'No', 'No']
 
             if p.tagline:
                 # Tagline length
@@ -389,7 +413,34 @@ def __aggregate(_posts, _media, _comments, session, logger):
     return _entries
 
 
-def clean_some_features(_entries):
+def discretize_affect_feature(positive_sentiment, negative_sentiment):
+    discretized_positive_sentiment_score = False
+    discretized_negative_sentiment_score = False
+    discretized_neutral_sentiment_score = False
+    if (positive_sentiment == +1) and ((negative_sentiment == -2) or (negative_sentiment == -3) or
+                                       (negative_sentiment == -4) or (negative_sentiment == -5)):
+        discretized_positive_sentiment_score = False
+        discretized_negative_sentiment_score = True
+        discretized_neutral_sentiment_score = False
+    elif ((positive_sentiment == +2) or (positive_sentiment == +3) or (positive_sentiment == +4) or
+          (positive_sentiment == +5)) and (negative_sentiment == -1):
+        discretized_positive_sentiment_score = True
+        discretized_negative_sentiment_score = False
+        discretized_neutral_sentiment_score = False
+    elif (positive_sentiment == +1) and (negative_sentiment == -1):
+        discretized_positive_sentiment_score = False
+        discretized_negative_sentiment_score = False
+        discretized_neutral_sentiment_score = True
+    elif ((positive_sentiment == +2) or (positive_sentiment == +3) or (positive_sentiment == +4) or
+          (positive_sentiment == +5)) and ((negative_sentiment == -2) or (negative_sentiment == -3) or
+                                           (negative_sentiment == -4) or (negative_sentiment == -5)):
+        discretized_positive_sentiment_score = True
+        discretized_negative_sentiment_score = True
+        discretized_neutral_sentiment_score = False
+    return discretized_positive_sentiment_score, discretized_negative_sentiment_score, discretized_neutral_sentiment_score
+
+
+def clean_features(_entries):
     _cleaned_entries = list()
     for e in _entries:
         # Insert Yes if the post is featured, No viceversa
@@ -420,61 +471,73 @@ def clean_some_features(_entries):
             is_weekend = 'No'
         e[11] = is_weekend
 
+        # Discretize positive sentiment and negative sentiment to Positive, Negative and Neutral
+        # 13 is the position in the list where positive_description_sentiment element is located
+        # 14 is the position in the list where negative_description_sentiment element is located
+        # 15 is the position in the list where discretized_positive_description_score is located
+        # 16 is the position in the list where discretized_negative_description_score is located
+        # 17 is the position in the list where discretized_neutral_description_score is located
+        discretized_positive_score, discretized_negative_score, discretized_neutral_score = discretize_affect_feature(
+            e[13], e[14])
+        e[15] = discretized_positive_score
+        e[16] = discretized_negative_score
+        e[17] = discretized_neutral_score
+
         # Insert Yes if the description post contains bullet points or explicit features, No viceversa
-        # 14 is the position in the list where the bullet_points_explicit_features element is located
+        # 20 is the position in the list where the bullet_points_explicit_features element is located
         are_there_bullet_points_explicit_features = 'Yes'
-        if not e[14]:
+        if not e[20]:
             are_there_bullet_points_explicit_features = 'No'
-        e[14] = are_there_bullet_points_explicit_features
+        e[20] = are_there_bullet_points_explicit_features
 
         # Insert Yes if the description post contains emojis, No viceversa
-        # 15 is the position in the list where the emoji_in_description element is located
+        # 21 is the position in the list where the emoji_in_description element is located
         are_there_emoji_in_description = 'Yes'
-        if not e[15]:
+        if not e[21]:
             are_there_emoji_in_description = 'No'
-        e[15] = are_there_emoji_in_description
+        e[21] = are_there_emoji_in_description
 
         # Insert Yes if the tagline post contains emojis, No viceversa
-        # 17 is the position in the list where the emoji_in_tagline element is located
+        # 23 is the position in the list where the emoji_in_tagline element is located
         are_there_emoji_in_tagline = 'Yes'
-        if not e[17]:
+        if not e[23]:
             are_there_emoji_in_tagline = 'No'
-        e[17] = are_there_emoji_in_tagline
+        e[23] = are_there_emoji_in_tagline
 
         # Insert Yes if the post contains gif images, No viceversa
-        # 20 is the position in the list where the are_there_gif_images element is located
+        # 26 is the position in the list where the are_there_gif_images element is located
         are_there_gif_images = 'Yes'
-        if not e[20]:
+        if not e[26]:
             are_there_gif_images = 'No'
-        e[20] = are_there_gif_images
+        e[26] = are_there_gif_images
 
         # Insert Yes if the hunter that hunted the post has a twitter account, No viceversa
-        # 27 is the position in the list where the hunter_has_twitter element is located
+        # 33 is the position in the list where the hunter_has_twitter element is located
         hunter_has_twitter = 'Yes'
-        if not e[27]:
+        if not e[33]:
             hunter_has_twitter = 'No'
-        e[27] = hunter_has_twitter
+        e[33] = hunter_has_twitter
 
         # Insert Yes if the hunter that hunted the post has a website, No viceversa
-        # 28 is the position in the list where the hunter_has_website element is located
+        # 34 is the position in the list where the hunter_has_website element is located
         hunter_has_website = 'Yes'
-        if not e[28]:
+        if not e[34]:
             hunter_has_website = 'No'
-        e[28] = hunter_has_website
+        e[34] = hunter_has_website
 
         # Insert Yes if the maker that launched the post has a twitter account, No viceversa
-        # 34 is the position in the list where the maker_has_twitter element is located
+        # 40 is the position in the list where the maker_has_twitter element is located
         maker_has_twitter = 'Yes'
-        if not e[34]:
+        if not e[40]:
             maker_has_twitter = 'No'
-        e[34] = maker_has_twitter
+        e[40] = maker_has_twitter
 
         # Insert Yes if the maker that launched the post has a website, No viceversa
-        # 35 is the position in the list where the maker_has_website element is located
+        # 41 is the position in the list where the maker_has_website element is located
         maker_has_website = 'Yes'
-        if not e[35]:
+        if not e[41]:
             maker_has_website = 'No'
-        e[35] = maker_has_website
+        e[41] = maker_has_website
 
         _cleaned_entries.append(e)
     return _cleaned_entries
@@ -484,13 +547,15 @@ def write_all_features(outfile, _entries):
     writer = CsvWriter(outfile)
     header = ['post_id', 'post_name', 'version', 'tags_number', 'is_featured', 'score', 'created_at_day',
               'created_at_daytime', 'launched_day', 'is_best_time_to_launch', 'is_best_day_to_launch',
-              'is_weekend', 'text_description_length', 'sentence_length_in_the_description',
-              'Bullet_points_explicit_features', 'emoji_in_description', 'tagline_length', 'emoji_in_tagline',
-              'are_there_video', 'are_there_tweetable_images', 'are_there_gif_images', 'number_of_gif', 'offers',
-              'promo_discount_codes', 'are_there_questions', 'hunter_id', 'hunter_name', 'hunter_has_twitter',
-              'hunter_has_website', 'hunter_followers', 'hunter_apps_made', 'hunter_follows_up_on_comments',
-              'maker_id', 'maker_name', 'maker_has_twitter', 'maker_has_website', 'maker_followers',
-              'maker_follows_up_on_comments']
+              'is_weekend', 'post_description', 'positive_description_sentiment',
+              'negative_description_sentiment', 'discretized_positive_description_score',
+              'discretized_negative_description_score', 'discretized_neutral_description_score',
+              'text_description_length', 'sentence_length_in_the_description', 'Bullet_points_explicit_features',
+              'emoji_in_description', 'tagline_length', 'emoji_in_tagline', 'are_there_video',
+              'are_there_tweetable_images', 'are_there_gif_images', 'number_of_gif', 'offers', 'promo_discount_codes',
+              'are_there_questions', 'hunter_id', 'hunter_name', 'hunter_has_twitter', 'hunter_has_website',
+              'hunter_followers', 'hunter_apps_made', 'hunter_follows_up_on_comments', 'maker_id', 'maker_name',
+              'maker_has_twitter', 'maker_has_website', 'maker_followers', 'maker_follows_up_on_comments']
     writer.writerow(header)
     writer.writerows(_entries)
     writer.close()
@@ -538,7 +603,7 @@ def discretize_continuous_variables(csv):
         create_plot_directory(plot_save_dir)
 
     # Text description length discretization
-    text_length = data_disc.iloc[:, 12:13]  # position where is located the column text_description_length
+    text_length = data_disc.iloc[:, 18:19]  # position where is located the column text_description_length
     plotter = elbow_method(text_length)
     plotter.show(plot_save_dir + "\\clustering-based discretization for Text Length")
     disc = discretize(text_length, plotter.elbow_value_)
@@ -549,7 +614,7 @@ def discretize_continuous_variables(csv):
                                                  include_lowest=True)
 
     # Sentence length discretization
-    sentence_length = data_disc.iloc[:, 13:14]  # position where is located the column sentence_length_in_the_description
+    sentence_length = data_disc.iloc[:, 19:20]  # position where is located the column sentence_length_in_the_description
     plotter = elbow_method(sentence_length)
     plotter.show(plot_save_dir + "\\clustering-based discretization for Sentence Length")
     disc = discretize(sentence_length, plotter.elbow_value_)
@@ -560,7 +625,7 @@ def discretize_continuous_variables(csv):
         sentence_length['sentence_length_in_the_description'], bins, labels=group_names, include_lowest=True)
 
     # Tagline length discretization
-    tagline_length = data_disc.iloc[:, 16:17]  # position where is located the column tagline_length
+    tagline_length = data_disc.iloc[:, 22:23]  # position where is located the column tagline_length
     plotter = elbow_method(tagline_length)
     plotter.show(plot_save_dir + "\\clustering-based discretization for Tagline Length")
     disc = discretize(tagline_length, 3)
@@ -571,7 +636,7 @@ def discretize_continuous_variables(csv):
                                               include_lowest=True)
 
     # Hunter followers discretization
-    hunter_followers = data_disc.iloc[:, 29:30]  # position where is located the column hunter_followers
+    hunter_followers = data_disc.iloc[:, 35:36]  # position where is located the column hunter_followers
     plotter = elbow_method(hunter_followers)
     plotter.show(plot_save_dir + "\\clustering-based discretization for Hunter Followers")
     disc = discretize(hunter_followers, plotter.elbow_value_)
@@ -582,7 +647,7 @@ def discretize_continuous_variables(csv):
                                                   include_lowest=True)
 
     # Hunter apps made discretization
-    hunter_apps_made = data_disc.iloc[:, 30:31]  # position where is located the column hunter_apps_made
+    hunter_apps_made = data_disc.iloc[:, 36:37]  # position where is located the column hunter_apps_made
     plotter = elbow_method(hunter_apps_made)
     plotter.show(plot_save_dir + "\\clustering-based discretization for Hunter Apps Made")
     disc = discretize(hunter_apps_made, plotter.elbow_value_)
@@ -593,7 +658,7 @@ def discretize_continuous_variables(csv):
                                                   include_lowest=True)
 
     # Maker followers discretization
-    maker_followers = data_disc.iloc[:, 36:37]  # position where is located the column maker_followers
+    maker_followers = data_disc.iloc[:, 42:43]  # position where is located the column maker_followers
     plotter = elbow_method(maker_followers)
     plotter.show(plot_save_dir + "\\clustering-based discretization for Maker Followers")
     disc = discretize(maker_followers, plotter.elbow_value_)
@@ -624,7 +689,7 @@ def main():
     os.environ['FEATURES'] = os.path.abspath('features.csv')
 
     entries = extract_all_features(session, logger)
-    entries = clean_some_features(entries)
+    entries = clean_features(entries)
     write_all_features(os.environ['FEATURES'], entries)
 
     csv_path = os.getcwd() + '\\features.csv'
