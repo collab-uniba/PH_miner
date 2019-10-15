@@ -154,4 +154,5 @@ Werkzeug==0.15.5
 widgetsnbextension==3.4.2
 wrapt==1.11.2
 wurlitzer==1.0.3
+yellowbrick==1.0.1
 zope.interface==4.6.0
