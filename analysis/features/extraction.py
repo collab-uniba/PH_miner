@@ -319,20 +319,25 @@ def __aggregate(_posts, _media, _comments, session, logger):
             gif = []
             index_media = 0
             while index_media < len(_media):
-                if p.id == _media[index_media][0]:  # check if the current post_id is equal to the post_id of the current media
-                    if _media[index_media][1] == 'video':  # check if the media type is 'video'
-                        video = video + [_media[index_media][2]]  # append to the list the link of the video
+                # check if the current post_id is equal to the post_id of the current media
+                if p.id == _media[index_media][0]:
+                    # check if the media type is 'video'
+                    if _media[index_media][1] == 'video':
+                        # append to the list the link of the video
+                        video = video + [_media[index_media][2]]
 
-                    # calculate the image size passing its width and height
+                    # calculate the image size passing its width and its height
                     roughly, ratio = calculate_aspect_ratio(_media[index_media][3], _media[index_media][4])
                     # check if the image is a tweetable image
                     if (roughly == 2) and (ratio == 1):
-                        tweetable_images = tweetable_images + [_media[index_media][5]]  # append to the list the image url
+                        # append to the list the image url
+                        tweetable_images = tweetable_images + [_media[index_media][5]]
 
                     # check if the image is a gif image passing its url
                     found = is_gif(_media[index_media][5])
                     if found:
-                        gif = gif + [_media[index_media][5]]  # append to the list the image url
+                        # append to the list the image url
+                        gif = gif + [_media[index_media][5]]
                 index_media = index_media + 1
             if video:
                 entry = entry + ['Yes']
@@ -355,17 +360,25 @@ def __aggregate(_posts, _media, _comments, session, logger):
             hunter_follows_up_on_comments = []
             index_comment = 0
             while index_comment < len(_comments):
-                if p.id == _comments[index_comment][3]:  # check if the current post_id is equal to the post_id of the current comment
-                    offer = __extract_offers(_comments[index_comment][1])  # extract offers passing the comment body
+                # check if the current post_id is equal to the post_id of the current comment
+                if p.id == _comments[index_comment][3]:
+                    # extract offers passing the comment body
+                    offer = __extract_offers(_comments[index_comment][1])
                     if offer:
                         offers = offers + offer
-                    question = __extract_questions(_comments[index_comment][1])  # extract questions passing the comment body
+
+                    # extract questions passing the comment body
+                    question = __extract_questions(_comments[index_comment][1])
                     if question:
                         questions = questions + question
-                    promo_code = __extract_promo_codes(_comments[index_comment][1])  # extract promo_codes passing the comment body
+
+                    # extract promo_codes passing the comment body
+                    promo_code = __extract_promo_codes(_comments[index_comment][1])
                     if promo_code:
                         promo_codes = promo_codes + promo_code
-                    if _comments[index_comment][4] == maker_id:  # check if the maker_id that partecipates in the current comment is equal to the current maker_id
+
+                    # check if the maker_id that follows up on the current comment is equal to the current maker_id
+                    if _comments[index_comment][4] == maker_id:
                         maker_follows_up_on_comments.insert(0, _comments[index_comment][5])
                     else:
                         hunter_follows_up_on_comments.insert(0, _comments[index_comment][5])
