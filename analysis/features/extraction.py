@@ -18,6 +18,8 @@ import pandas as pd
 # Libraries used for discretizing continuous variables using k-means clustering
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import KBinsDiscretizer
+
+# Library used for visualizing graphics
 import matplotlib.pyplot as plt
 
 # Library used for implementing Clustering Visualizers, in particular the elbow method was used
@@ -303,6 +305,7 @@ def __aggregate(_posts, _media, _comments, session, logger):
             else:
                 entry = entry + [1, -1, '', '', '', 0, 0, 'No', 'No']
 
+            entry = entry + [p.tagline]
             if p.tagline:
                 # Tagline length
                 entry = entry + [len(p.tagline)]
@@ -511,46 +514,46 @@ def clean_features(_entries):
         e[21] = are_there_emoji_in_description
 
         # Insert Yes if the tagline post contains emojis, No viceversa
-        # 23 is the position in the list where the emoji_in_tagline element is located
+        # 24 is the position in the list where the emoji_in_tagline element is located
         are_there_emoji_in_tagline = 'Yes'
-        if not e[23]:
+        if not e[24]:
             are_there_emoji_in_tagline = 'No'
-        e[23] = are_there_emoji_in_tagline
+        e[24] = are_there_emoji_in_tagline
 
         # Insert Yes if the post contains gif images, No viceversa
-        # 26 is the position in the list where the are_there_gif_images element is located
+        # 27 is the position in the list where the are_there_gif_images element is located
         are_there_gif_images = 'Yes'
-        if not e[26]:
+        if not e[27]:
             are_there_gif_images = 'No'
-        e[26] = are_there_gif_images
+        e[27] = are_there_gif_images
 
         # Insert Yes if the hunter that hunted the post has a twitter account, No viceversa
-        # 33 is the position in the list where the hunter_has_twitter element is located
+        # 34 is the position in the list where the hunter_has_twitter element is located
         hunter_has_twitter = 'Yes'
-        if not e[33]:
+        if not e[34]:
             hunter_has_twitter = 'No'
-        e[33] = hunter_has_twitter
+        e[34] = hunter_has_twitter
 
         # Insert Yes if the hunter that hunted the post has a website, No viceversa
-        # 34 is the position in the list where the hunter_has_website element is located
+        # 35 is the position in the list where the hunter_has_website element is located
         hunter_has_website = 'Yes'
-        if not e[34]:
+        if not e[35]:
             hunter_has_website = 'No'
-        e[34] = hunter_has_website
+        e[35] = hunter_has_website
 
         # Insert Yes if the maker that launched the post has a twitter account, No viceversa
-        # 40 is the position in the list where the maker_has_twitter element is located
+        # 41 is the position in the list where the maker_has_twitter element is located
         maker_has_twitter = 'Yes'
-        if not e[40]:
+        if not e[41]:
             maker_has_twitter = 'No'
-        e[40] = maker_has_twitter
+        e[41] = maker_has_twitter
 
         # Insert Yes if the maker that launched the post has a website, No viceversa
-        # 41 is the position in the list where the maker_has_website element is located
+        # 42 is the position in the list where the maker_has_website element is located
         maker_has_website = 'Yes'
-        if not e[41]:
+        if not e[42]:
             maker_has_website = 'No'
-        e[41] = maker_has_website
+        e[42] = maker_has_website
 
         _cleaned_entries.append(e)
     return _cleaned_entries
@@ -564,7 +567,7 @@ def write_all_features(outfile, _entries):
               'negative_description_sentiment', 'discretized_positive_description_score',
               'discretized_negative_description_score', 'discretized_neutral_description_score',
               'text_description_length', 'sentence_length_in_the_description', 'Bullet_points_explicit_features',
-              'emoji_in_description', 'tagline_length', 'emoji_in_tagline', 'are_there_video',
+              'emoji_in_description', 'post_tagline', 'tagline_length', 'emoji_in_tagline', 'are_there_video',
               'are_there_tweetable_images', 'are_there_gif_images', 'number_of_gif', 'offers', 'promo_discount_codes',
               'are_there_questions', 'hunter_id', 'hunter_name', 'hunter_has_twitter', 'hunter_has_website',
               'hunter_followers', 'hunter_apps_made', 'hunter_follows_up_on_comments', 'maker_id', 'maker_name',
@@ -638,7 +641,7 @@ def discretize_continuous_variables(csv):
         sentence_length['sentence_length_in_the_description'], bins, labels=group_names, include_lowest=True)
 
     # Tagline length discretization
-    tagline_length = data_disc.iloc[:, 22:23]  # position where is located the column tagline_length
+    tagline_length = data_disc.iloc[:, 23:24]  # position where is located the column tagline_length
     plotter = elbow_method(tagline_length)
     plotter.show(plot_save_dir + "\\clustering-based discretization for Tagline Length")
     disc = discretize(tagline_length, 3)
@@ -649,7 +652,7 @@ def discretize_continuous_variables(csv):
                                               include_lowest=True)
 
     # Hunter followers discretization
-    hunter_followers = data_disc.iloc[:, 35:36]  # position where is located the column hunter_followers
+    hunter_followers = data_disc.iloc[:, 36:37]  # position where is located the column hunter_followers
     plotter = elbow_method(hunter_followers)
     plotter.show(plot_save_dir + "\\clustering-based discretization for Hunter Followers")
     disc = discretize(hunter_followers, plotter.elbow_value_)
@@ -660,7 +663,7 @@ def discretize_continuous_variables(csv):
                                                   include_lowest=True)
 
     # Hunter apps made discretization
-    hunter_apps_made = data_disc.iloc[:, 36:37]  # position where is located the column hunter_apps_made
+    hunter_apps_made = data_disc.iloc[:, 37:38]  # position where is located the column hunter_apps_made
     plotter = elbow_method(hunter_apps_made)
     plotter.show(plot_save_dir + "\\clustering-based discretization for Hunter Apps Made")
     disc = discretize(hunter_apps_made, plotter.elbow_value_)
@@ -671,7 +674,7 @@ def discretize_continuous_variables(csv):
                                                   include_lowest=True)
 
     # Maker followers discretization
-    maker_followers = data_disc.iloc[:, 42:43]  # position where is located the column maker_followers
+    maker_followers = data_disc.iloc[:, 43:44]  # position where is located the column maker_followers
     plotter = elbow_method(maker_followers)
     plotter.show(plot_save_dir + "\\clustering-based discretization for Maker Followers")
     disc = discretize(maker_followers, plotter.elbow_value_)
