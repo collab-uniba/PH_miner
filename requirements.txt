@@ -39,6 +39,7 @@ floyd-cli==0.11.17
 funcsigs==1.0.2
 furl==2.0.0
 gast==0.2.2
+gensim==3.8.0
 google-pasta==0.1.7
 grpcio==1.22.0
 h5py==2.9.0
