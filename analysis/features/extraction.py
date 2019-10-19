@@ -8,6 +8,9 @@ import mimetypes
 # Libraries used for regular expression
 import emoji
 import regex
+import gensim
+
+import numpy as np
 
 # Library used for checking day from datetime
 import calendar
@@ -19,21 +22,28 @@ import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import KBinsDiscretizer
 
-# Library used for visualizing graphics
+# Libraries used to do topic modeling
+from sklearn.decomposition import LatentDirichletAllocation
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import GridSearchCV
+from pprint import pprint
+
+# Library used to visualize graphics
 import matplotlib.pyplot as plt
 
 # Library used for implementing Clustering Visualizers, in particular the elbow method was used
 from yellowbrick.cluster import KElbowVisualizer
 
-# Library used for search sentences in text
-from nltk import sent_tokenize
+# Libraries used for natural language preprocessing
+from nltk import sent_tokenize  # this library is used to find sentences in text
+import spacy  # this library is used to execute the lemmatization necessary to execute the topic modeling
 
 # Libraries used to access to database
 from sqlalchemy import func
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.exc import MultipleResultsFound
 
-# Library used for excracting the sentiment of makers based on description posts and their comments
+# Library used for extracting the sentiment of makers based on description posts and their comments
 from sentistrength import PySentiStr
 
 from pytz import timezone
@@ -566,7 +576,7 @@ def write_all_features(outfile, _entries):
               'is_weekend', 'post_description', 'positive_description_sentiment',
               'negative_description_sentiment', 'discretized_positive_description_score',
               'discretized_negative_description_score', 'discretized_neutral_description_score',
-              'text_description_length', 'sentence_length_in_the_description', 'Bullet_points_explicit_features',
+              'text_description_length', 'sentence_length_in_the_description', 'bullet_points_explicit_features',
               'emoji_in_description', 'post_tagline', 'tagline_length', 'emoji_in_tagline', 'are_there_video',
               'are_there_tweetable_images', 'are_there_gif_images', 'number_of_gif', 'offers', 'promo_discount_codes',
               'are_there_questions', 'hunter_id', 'hunter_name', 'hunter_has_twitter', 'hunter_has_website',
@@ -577,6 +587,172 @@ def write_all_features(outfile, _entries):
     writer.close()
 
 
+# This function realizes topic modeling considering title, tagline and description for each post. Then each topic
+# is added to the corresponding post
+def realize_topic_modeling(csv_path):
+    num_topics = 3  # Number of topics to generate
+    document_topic_matrix = lda_topic_modeling(csv_path, num_topics)
+    aggregate_topic_variable(document_topic_matrix, csv_path)
+
+
+def remove_email_and_new_line_chars(text):
+    _data = text.values.tolist()  # Convert to list
+    _data = [regex.sub(r'\S*@\S*\s?', '', str(sent)) for sent in _data]  # Remove Emails
+    _data = [regex.sub(r'\s+', ' ', str(sent)) for sent in _data]  # Remove new line characters
+    _data = [regex.sub("\'", "", sent) for sent in _data]  # Remove distracting single quotes
+    return _data
+
+
+def sent_to_words(sentences):
+    for sentence in sentences:
+        yield(gensim.utils.simple_preprocess(str(sentence), deacc=True))  # deacc=True removes punctuations
+
+
+def lemmatization(texts, allowed_postags, nlp):
+    """https://spacy.io/api/annotation"""
+    texts_out = []
+    for sent in texts:
+        doc = nlp(" ".join(sent))
+        texts_out.append(" ".join([token.lemma_ if token.lemma_ not in ['-PRON-'] else '' for token in doc if token.pos_ in allowed_postags]))
+    return texts_out
+
+
+def create_document_topic_matrix(blm, doc_word_matrix, data):
+    lda_output = blm.transform(doc_word_matrix)
+    # column names
+    topicnames = ["Topic" + str(i) for i in range(blm.n_components)]
+    # index names
+    docnames = ["Doc" + str(i) for i in range(len(data))]
+    # Make the pandas dataframe
+    df_doc_topic = pd.DataFrame(np.round(lda_output, 2), columns=topicnames, index=docnames)
+    return df_doc_topic
+
+
+def color_green(val):
+    color = 'green' if val > .1 else 'black'
+    return 'color: {col}'.format(col=color)
+
+
+def make_bold(val):
+    weight = 700 if val > .1 else 400
+    return 'font-weight: {weight}'.format(weight=weight)
+
+
+def show_topics(vectorizer, best_lda_model, n_words):
+    keywords = np.array(vectorizer.get_feature_names())
+    topic_keywords = []
+    for topic_weights in best_lda_model.components_:
+        found = 0
+        key_words = []
+        top_keyword_locs = (-topic_weights).argsort()[:n_words]
+        for i in range(0, len(keywords.take(top_keyword_locs))):
+            if keywords.take(top_keyword_locs)[i] == 'nan':
+                found = 1
+                top_keyword_locs = (-topic_weights).argsort()[:n_words+1]
+                key_words.append(keywords.take(top_keyword_locs)[i+1])
+            else:
+                if found == 0:
+                    key_words.append(keywords.take(top_keyword_locs)[i])
+                else:
+                    key_words.append(keywords.take(top_keyword_locs)[i+1])
+        topic_keywords.append(key_words)
+    return topic_keywords
+
+
+def lda_topic_modeling(csv_file, n_topics):
+    # Import dataset
+    df = pd.read_csv(csv_file, delimiter=';', usecols=['post_name', 'post_description', 'post_tagline'])
+    print(df.head(15))
+
+    # Remove email and new line characters
+    data = remove_email_and_new_line_chars(df.post_tagline)
+    print('\n')
+    pprint(data[:1])
+    data = remove_email_and_new_line_chars(df.post_description)
+    print('\n')
+    pprint(data[:1])
+
+    # Tokenize and Clean-up text
+    data_words = list(sent_to_words(data))
+    print('\n', data_words[:1])
+
+    # Lemmatization
+    nlp = spacy.load('en_core_web_sm', disable=['parser', 'ner'])  # Initialize spacy 'en' model, keeping only tagger
+    # component (for efficiency)
+    data_lemmatized = lemmatization(data_words, ['NOUN', 'ADJ', 'VERB', 'ADV'], nlp)  # Do lemmatization keeping only
+    # Noun, Adj, Verb, Adverb
+    print('\n', data_lemmatized[:2])
+
+    # Create the Document-Word matrix
+    vectorizer = CountVectorizer(analyzer='word',
+                                 min_df=10,  # minimum required occurences of a word
+                                 stop_words='english',  # remove english stop words
+                                 lowercase=True,  # convert all words to lowercase
+                                 token_pattern='[a-zA-Z0-9]{3,}',  # number of chars in a word > 3
+                                 )
+    data_vectorized = vectorizer.fit_transform(data_lemmatized)
+
+    # Check the Sparsicity
+    data_dense = data_vectorized.todense()  # Materialize the sparse data
+    print("\nSparsicity: ", ((data_dense > 0).sum() / data_dense.size) * 100, "%")  # Compute Sparsicity = Percentage of
+    # Non-Zero cells
+
+    # Build LDA model with sklearn
+    lda_model = LatentDirichletAllocation(n_components=10,  # Number of topics
+                                          max_iter=10,  # Max learning iterations
+                                          learning_method='online',
+                                          random_state=100,  # Random state
+                                          batch_size=128,  # number of documents in each learning iter
+                                          evaluate_every=-1,  # compute perplexity every n iters, default: Don't
+                                          n_jobs=-1,  # Use all available CPUs
+                                          )
+    lda_output = lda_model.fit_transform(data_vectorized)
+    print('\n', lda_model)  # Model attributes
+
+    # Diagnose model performance with perplexity and log-likelihood
+    print("\nLog Likelihood: ", lda_model.score(data_vectorized))  # Log Likelyhood: Higher the better
+    print("Perplexity: ", lda_model.perplexity(data_vectorized))  # Perplexity: Lower the better.
+    # Perplexity = exp(-1. * log-likelihood per word)
+    pprint(lda_model.get_params())  # See model parameters
+
+    # GridSearch the best LDA model
+    search_params = {'n_components': [n_topics], 'learning_decay': [.5, .7, .9]}  # Define Search Param
+    model = GridSearchCV(lda_model, param_grid=search_params, n_jobs=1, iid=True, cv=3, error_score='raise')  # Init Grid Search Class
+    model.fit(data_vectorized)  # Do the Grid Search
+
+    # Find the best topic model and its parameters
+    best_lda_model = model.best_estimator_  # Best Model
+    print("\nBest Model's Params: ", model.best_params_)  # Model Parameters
+    print("Best Log Likelihood Score: ", model.best_score_)  # Log Likelihood Score
+    print("Model Perplexity: ", best_lda_model.perplexity(data_vectorized))  # Perplexity
+
+    # How to see the dominant topic in each document
+    df_document_topic = create_document_topic_matrix(best_lda_model, data_vectorized, data)
+    n_documents = 15  # This number indicates an excerpt of documents to which visualize their own dominant topic
+    df_document_topics = df_document_topic.head(n_documents).style.applymap(color_green).applymap(
+        make_bold).highlight_max(color='yellow', axis=1)
+    print('\n', df_document_topics)
+
+    # Get the top 15 keywords each topic
+    topic_keywords = show_topics(vectorizer, best_lda_model, 15)  # Show top n keywords for each topic in order of
+                                                                  # highest probability. In this case n is equal to 15
+    df_topic_keywords = pd.DataFrame(topic_keywords)  # Topic- Keywords Dataframe
+    df_topic_keywords.columns = ['Word ' + str(i) for i in range(df_topic_keywords.shape[1])]
+    df_topic_keywords.index = ['Topic ' + str(i) for i in range(df_topic_keywords.shape[0])]
+    print('\n', df_topic_keywords)
+    return df_document_topic
+
+
+def aggregate_topic_variable(doc_topic_matrix, csv):
+    # Add column Topic to the features csv file
+    dominant_topic = np.argmax(doc_topic_matrix.values, axis=1)
+    features = pd.read_csv(csv, delimiter=';')
+    features['topic'] = dominant_topic
+
+    # Update csv file with Topic column
+    features.to_csv(csv, sep=';', index=False)
+
+
 # The elbow method to determine the number of clusters
 def elbow_method(column):
     # Instantiate the clustering model
@@ -584,7 +760,8 @@ def elbow_method(column):
     visualizer = KElbowVisualizer(model, k=(1, 11), timings=False)
     # Plot visualizer
     plt.figure(figsize=(10, 5))
-    visualizer.fit(column)  # Fit the data to the visualizer
+    # Fit the data to the visualizer
+    visualizer.fit(column)
     return visualizer
 
 
@@ -684,13 +861,19 @@ def discretize_continuous_variables(csv):
     maker_followers['maker_followers'] = pd.cut(maker_followers['maker_followers'], bins, labels=group_names,
                                                 include_lowest=True)
 
-    # Changing continuous variables with discretized values for text length, sentence length and tagline length column
+    # Topic discretization
+    topic = data_disc.iloc[:, 45:46]  # position where is located the column Topic
+    topic['topic'] = topic['topic'].map({0: 'web development', 1: 'creativity', 2: 'community'})
+
+    # Changing continuous variables with discretized values for text length, sentence length, tagline length,
+    # hunter_followers, hunter_apps_made, maker_followers and topic column
     data_disc['text_description_length'] = text_length
     data_disc['sentence_length_in_the_description'] = sentence_length
     data_disc['tagline_length'] = tagline_length
     data_disc['hunter_followers'] = hunter_followers
     data_disc['hunter_apps_made'] = hunter_apps_made
     data_disc['maker_followers'] = maker_followers
+    data_disc['topic'] = topic
     data_disc.to_csv("features.csv", sep=';', index=False)
 
 
@@ -699,16 +882,20 @@ def main():
     now = datetime.datetime.now(timezone('US/Pacific')).strftime("%Y-%m-%d")
     logger = logging_config.get_logger(_dir=now, name="ph_feature_extraction", console_level=logging.ERROR)
 
+    csv_file_name = 'features.csv'  # csv file name where the features will be saved
+
     """ set up environment vars """
     os.environ['DB_CONFIG'] = os.path.abspath('db/cfg/dbsetup.yml')
     session = setup_db(os.environ['DB_CONFIG'])
-    os.environ['FEATURES'] = os.path.abspath('features.csv')
+    os.environ['FEATURES'] = os.path.abspath(csv_file_name)
 
     entries = extract_all_features(session, logger)
     entries = clean_features(entries)
     write_all_features(os.environ['FEATURES'], entries)
 
-    csv_path = os.getcwd() + '\\features.csv'
+    csv_path = os.getcwd() + '\\' + csv_file_name
+    realize_topic_modeling(csv_path)
+
     discretize_continuous_variables(csv_path)
 
 
