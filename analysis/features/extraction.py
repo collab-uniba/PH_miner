@@ -371,6 +371,7 @@ def __aggregate(_posts, _media, _comments, session, logger):
             promo_codes = []
             maker_follows_up_on_comments = []
             hunter_follows_up_on_comments = []
+            comments = []
             index_comment = 0
             while index_comment < len(_comments):
                 # check if the current post_id is equal to the post_id of the current comment
@@ -395,6 +396,19 @@ def __aggregate(_posts, _media, _comments, session, logger):
                         maker_follows_up_on_comments.insert(0, _comments[index_comment][5])
                     else:
                         hunter_follows_up_on_comments.insert(0, _comments[index_comment][5])
+
+                    """ Extraction of maker sentiment based on his post comments written the day of launch """
+                    if _comments[index_comment][4] == maker_id:
+                        # date of maker's comment written the day the post was launched
+                        comment_date = _comments[index_comment][2]
+                        # cut the comments written days after the post was launched
+                        if (p.created_at.year == comment_date.year) and (p.created_at.month == comment_date.month) and (
+                                p.created_at.day == comment_date.day):
+                            if not comments:
+                                comments = [_comments[index_comment][1]]
+                            else:
+                                comments = comments + [_comments[index_comment][1]]
+
                 index_comment = index_comment + 1
             if offers:
                 entry = entry + ['Yes']
@@ -428,6 +442,15 @@ def __aggregate(_posts, _media, _comments, session, logger):
                 entry = entry + ['Yes']
             else:
                 entry = entry + ['No']
+
+            # Append to the list the maker comment sentiment
+            if comments:
+                comment = '\n'.join(comments)
+                sentiment = __extract_maker_sentiment(senti, comment)
+            else:
+                comment = ''
+                sentiment = [[1, -1]]
+            entry = entry + [comment, sentiment[0][0], sentiment[0][1], '', '', '']
 
             _entries.append(entry)
         except NoResultFound as ex:
@@ -497,7 +520,9 @@ def clean_features(_entries):
             is_weekend = 'No'
         e[11] = is_weekend
 
-        # Discretize positive sentiment and negative sentiment to Positive, Negative and Neutral
+        # Discretize positive sentiment and negative sentiment to Positive, Negative and Neutral for maker sentiment
+        # in description
+        #
         # 13 is the position in the list where positive_description_sentiment element is located
         # 14 is the position in the list where negative_description_sentiment element is located
         # 15 is the position in the list where discretized_positive_description_score is located
@@ -565,6 +590,20 @@ def clean_features(_entries):
             maker_has_website = 'No'
         e[42] = maker_has_website
 
+        # Discretize positive sentiment and negative sentiment to Positive, Negative and Neutral for maker sentiment
+        # in comment
+        #
+        # 46 is the position in the list where positive_comment_sentiment element is located
+        # 47 is the position in the list where negative_comment_sentiment element is located
+        # 48 is the position in the list where discretized_positive_comment_score is located
+        # 49 is the position in the list where discretized_negative_comment_score is located
+        # 50 is the position in the list where discretized_neutral_comment_score is located
+        discretized_positive_score, discretized_negative_score, discretized_neutral_score = discretize_affect_feature(
+            e[46], e[47])
+        e[48] = discretized_positive_score
+        e[49] = discretized_negative_score
+        e[50] = discretized_neutral_score
+
         _cleaned_entries.append(e)
     return _cleaned_entries
 
@@ -581,7 +620,10 @@ def write_all_features(outfile, _entries):
               'are_there_tweetable_images', 'are_there_gif_images', 'number_of_gif', 'offers', 'promo_discount_codes',
               'are_there_questions', 'hunter_id', 'hunter_name', 'hunter_has_twitter', 'hunter_has_website',
               'hunter_followers', 'hunter_apps_made', 'hunter_follows_up_on_comments', 'maker_id', 'maker_name',
-              'maker_has_twitter', 'maker_has_website', 'maker_followers', 'maker_follows_up_on_comments']
+              'maker_has_twitter', 'maker_has_website', 'maker_followers', 'maker_follows_up_on_comments',
+              'post_comment', 'positive_comment_sentiment', 'negative_comment_sentiment',
+              'discretized_positive_comment_score', 'discretized_negative_comment_score',
+              'discretized_neutral_comment_score']
     writer.writerow(header)
     writer.writerows(_entries)
     writer.close()
@@ -862,7 +904,7 @@ def discretize_continuous_variables(csv):
                                                 include_lowest=True)
 
     # Topic discretization
-    topic = data_disc.iloc[:, 45:46]  # position where is located the column Topic
+    topic = data_disc.iloc[:, 51:52]  # position where is located the column Topic
     topic['topic'] = topic['topic'].map({0: 'web development', 1: 'creativity', 2: 'community'})
 
     # Changing continuous variables with discretized values for text length, sentence length, tagline length,
