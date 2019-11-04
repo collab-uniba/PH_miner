@@ -369,9 +369,10 @@ def __aggregate(_posts, _media, _comments, session, logger):
             offers = []
             questions = []
             promo_codes = []
-            maker_follows_up_on_comments = []
-            hunter_follows_up_on_comments = []
+            maker_follows_up_on_comments = 0
+            hunter_follows_up_on_comments = 0
             comments = []
+            hunter_id = session.query(Hunts.hunter_id).filter(Hunts.post_id == p.id).one()[0]
             index_comment = 0
             while index_comment < len(_comments):
                 # check if the current post_id is equal to the post_id of the current comment
@@ -393,9 +394,10 @@ def __aggregate(_posts, _media, _comments, session, logger):
 
                     # check if the maker_id that follows up on the current comment is equal to the current maker_id
                     if _comments[index_comment][4] == maker_id:
-                        maker_follows_up_on_comments.insert(0, _comments[index_comment][5])
+                        maker_follows_up_on_comments = 1
                     else:
-                        hunter_follows_up_on_comments.insert(0, _comments[index_comment][5])
+                        if _comments[index_comment][4] == hunter_id:
+                            hunter_follows_up_on_comments = 1
 
                     """ Extraction of maker sentiment based on his post comments written the day of launch """
                     if _comments[index_comment][4] == maker_id:
@@ -424,13 +426,12 @@ def __aggregate(_posts, _media, _comments, session, logger):
                 entry = entry + ['No']
 
             # Hunter reputation
-            hunter_id = session.query(Hunts.hunter_id).filter(Hunts.post_id == p.id).one()[0]
             hunter = session.query(User.id, User.name, User.twitter_username, User.website_url, User.followers_count,
                                    User.apps_made_count).filter(User.id == hunter_id).one()
             entry = entry + [hunter.id, hunter.name, hunter.twitter_username, hunter.website_url,
                              hunter.followers_count, hunter.apps_made_count]
 
-            if hunter_follows_up_on_comments:
+            if hunter_follows_up_on_comments == 1:
                 entry = entry + ['Yes']
             else:
                 entry = entry + ['No']
@@ -438,7 +439,7 @@ def __aggregate(_posts, _media, _comments, session, logger):
             # Maker reputation
             entry = entry + [maker.id, maker.name, maker.twitter_username, maker.website_url, maker.followers_count]
 
-            if maker_follows_up_on_comments:
+            if maker_follows_up_on_comments == 1:
                 entry = entry + ['Yes']
             else:
                 entry = entry + ['No']
@@ -877,7 +878,7 @@ def discretize_continuous_variables(csv):
     disc = discretize(hunter_followers, plotter.elbow_value_)
     bins = create_bins(disc.bin_edges_[0])
     print("Range of numbers for Hunter Followers {}".format(bins))
-    group_names = ['Low', 'Good', 'High']
+    group_names = ['Low', 'Medium', 'High']
     hunter_followers['hunter_followers'] = pd.cut(hunter_followers['hunter_followers'], bins, labels=group_names,
                                                   include_lowest=True)
 
@@ -888,7 +889,7 @@ def discretize_continuous_variables(csv):
     disc = discretize(hunter_apps_made, plotter.elbow_value_)
     bins = create_bins(disc.bin_edges_[0])
     print("Range of numbers for Hunter Apps Made {}".format(bins))
-    group_names = ['Few', 'Satisfactory', 'Many']
+    group_names = ['Low', 'Medium', 'High']
     hunter_apps_made['hunter_apps_made'] = pd.cut(hunter_apps_made['hunter_apps_made'], bins, labels=group_names,
                                                   include_lowest=True)
 
@@ -899,7 +900,7 @@ def discretize_continuous_variables(csv):
     disc = discretize(maker_followers, plotter.elbow_value_)
     bins = create_bins(disc.bin_edges_[0])
     print("Range of numbers for Maker Followers {}".format(bins))
-    group_names = ['Low', 'Good', 'High']
+    group_names = ['Low', 'Medium', 'High']
     maker_followers['maker_followers'] = pd.cut(maker_followers['maker_followers'], bins, labels=group_names,
                                                 include_lowest=True)
 
@@ -916,7 +917,13 @@ def discretize_continuous_variables(csv):
     data_disc['hunter_apps_made'] = hunter_apps_made
     data_disc['maker_followers'] = maker_followers
     data_disc['topic'] = topic
-    data_disc.to_csv("features.csv", sep=';', index=False)
+
+    # Create csv file containing final dataset with discretized features (features.csv) on which the
+    # logistic regression will be performed
+    csv_directory = os.getcwd()[:-8] + 'dataset\\'
+    discretized_features = 'features.csv'
+    csv_path = os.path.join(csv_directory, discretized_features)
+    data_disc.to_csv(csv_path, sep=';', index=False)
 
 
 def main():
@@ -929,13 +936,15 @@ def main():
     """ set up environment vars """
     os.environ['DB_CONFIG'] = os.path.abspath('db/cfg/dbsetup.yml')
     session = setup_db(os.environ['DB_CONFIG'])
-    os.environ['FEATURES'] = os.path.abspath(csv_file_name)
+    csv_directory = os.getcwd()[:-8] + 'dataset\\'
+    features_not_discretized = 'features_not_discretized.csv'
+    csv_path = os.path.join(csv_directory, features_not_discretized)
+    os.environ['FEATURES'] = os.path.abspath(csv_path)
 
     entries = extract_all_features(session, logger)
     entries = clean_features(entries)
     write_all_features(os.environ['FEATURES'], entries)
 
-    csv_path = os.getcwd() + '\\' + csv_file_name
     realize_topic_modeling(csv_path)
 
     discretize_continuous_variables(csv_path)
