@@ -38,6 +38,9 @@ from yellowbrick.cluster import KElbowVisualizer
 from nltk import sent_tokenize  # this library is used to find sentences in text
 import spacy  # this library is used to execute the lemmatization necessary to execute the topic modeling
 
+# Library used for statistical operations, in particular in this case it is used to do logistic regression
+import statsmodels.api as sm
+
 # Libraries used to access to database
 from sqlalchemy import func
 from sqlalchemy.orm.exc import NoResultFound
@@ -926,12 +929,85 @@ def discretize_continuous_variables(csv):
     data_disc.to_csv(csv_path, sep=';', index=False)
 
 
+def calculate_odds_ratio(coefficient_column):
+    odds_ratio = []
+    for i in range(0, len(coefficient_column)):
+        if not odds_ratio:
+            odds_ratio.append('-')
+        else:
+            odds_ratio.append(np.exp(coefficient_column[i]))
+    return odds_ratio
+
+
+def realize_logistic_regression(csv):
+    # Read csv file containing the dataset on which logistic regression will be performed
+    mydata = pd.read_csv(csv, delimiter=';', usecols=['is_featured', 'version', 'tags_number', 'score',
+                                                      'is_best_time_to_launch', 'is_best_day_to_launch',
+                                                      'is_weekend', 'positive_description_sentiment',
+                                                      'negative_description_sentiment', 'text_description_length',
+                                                      'sentence_length_in_the_description',
+                                                      'bullet_points_explicit_features', 'emoji_in_description',
+                                                      'tagline_length', 'emoji_in_tagline', 'are_there_video',
+                                                      'are_there_tweetable_images', 'are_there_gif_images',
+                                                      'number_of_gif', 'offers', 'promo_discount_codes',
+                                                      'are_there_questions', 'hunter_has_twitter', 'hunter_has_website',
+                                                      'hunter_followers', 'hunter_apps_made',
+                                                      'hunter_follows_up_on_comments', 'maker_has_twitter',
+                                                      'maker_has_website', 'maker_followers',
+                                                      'maker_follows_up_on_comments', 'positive_comment_sentiment',
+                                                      'negative_comment_sentiment', 'topic'])
+
+    # Set default variables for logistic regression
+    mydata = pd.get_dummies(mydata, columns=['is_best_time_to_launch', 'is_best_day_to_launch', 'is_weekend',
+                                             'bullet_points_explicit_features', 'emoji_in_description',
+                                             'emoji_in_tagline', 'are_there_video', 'are_there_tweetable_images',
+                                             'are_there_gif_images', 'offers', 'promo_discount_codes',
+                                             'are_there_questions', 'hunter_has_twitter', 'hunter_has_website',
+                                             'hunter_follows_up_on_comments', 'maker_has_twitter', 'maker_has_website',
+                                             'maker_follows_up_on_comments'], drop_first=True)
+    mydata = pd.get_dummies(mydata, columns=['text_description_length', 'sentence_length_in_the_description',
+                                             'tagline_length', 'hunter_followers', 'hunter_apps_made',
+                                             'maker_followers'])
+    mydata = mydata.drop(['text_description_length_Short', 'sentence_length_in_the_description_Short',
+                          'tagline_length_Short', 'hunter_followers_High', 'hunter_apps_made_High',
+                          'maker_followers_High'], axis=1)
+    mydata = pd.get_dummies(mydata, columns=['topic'])
+    mydata = mydata.drop(['topic_web development'], axis=1)
+
+    # Build logistic regression model
+    myformula = 'is_featured ~ version + tags_number + score + is_best_time_to_launch_Yes + is_best_day_to_launch_Yes + is_weekend_Yes + positive_description_sentiment + negative_description_sentiment + text_description_length_Medium + text_description_length_Long + sentence_length_in_the_description_Medium + sentence_length_in_the_description_Long + bullet_points_explicit_features_Yes + emoji_in_description_Yes + tagline_length_Medium + tagline_length_Long + emoji_in_tagline_Yes + are_there_video_Yes + are_there_tweetable_images_Yes + are_there_gif_images_Yes + number_of_gif + offers_Yes + promo_discount_codes_Yes + are_there_questions_Yes + hunter_has_twitter_Yes + hunter_has_website_Yes + hunter_followers_Low + hunter_followers_Medium + hunter_apps_made_Low + hunter_apps_made_Medium + hunter_follows_up_on_comments_Yes + maker_has_twitter_Yes + maker_has_website_Yes + maker_followers_Low + maker_followers_Medium + maker_follows_up_on_comments_Yes + positive_comment_sentiment + negative_comment_sentiment + topic_community + topic_creativity'
+    model = sm.GLM.from_formula(formula=myformula, data=mydata, family=sm.families.Binomial())
+    results = model.fit()
+    print(results.summary())
+
+    # Note that the summary table is a list. The table at index 1 is the "core" table.
+    # Additionally, read_html puts dataframe in a list, so we want index 0
+    results_summary = results.summary()
+    results_as_html = results_summary.tables[1].as_html()
+    logistic = pd.read_html(results_as_html, header=0, index_col=0)[0]
+
+    # Convert html table into csv file
+    csv_directory = os.getcwd()[:-8] + 'dataset\\'
+    csv_file_name = 'logistic_regression_results.csv'
+    csv_path = os.path.join(csv_directory, csv_file_name)
+    logistic.to_csv(csv_path, sep=';', columns=logistic.columns)
+    temp = pd.read_csv(csv_path, delimiter=';')
+    temp.rename(columns={temp.columns[0]: "Predictor"}, inplace=True)
+    temp.to_csv(csv_path, sep=';', index=False)
+
+    # Calculate the Odds Ratio and add this column to summary table
+    df = pd.read_csv(csv_path, delimiter=';')
+    odds_ratio = calculate_odds_ratio(df['coef'])
+    df.insert(2, 'Odds Ratio', odds_ratio)
+    print('\nOdds Ratio')
+    print(df['Odds Ratio'])
+    df.to_csv(csv_path, sep=';', index=False)
+
+
 def main():
     """ set up logging """
     now = datetime.datetime.now(timezone('US/Pacific')).strftime("%Y-%m-%d")
     logger = logging_config.get_logger(_dir=now, name="ph_feature_extraction", console_level=logging.ERROR)
-
-    csv_file_name = 'features.csv'  # csv file name where the features will be saved
 
     """ set up environment vars """
     os.environ['DB_CONFIG'] = os.path.abspath('db/cfg/dbsetup.yml')
@@ -948,6 +1024,10 @@ def main():
     realize_topic_modeling(csv_path)
 
     discretize_continuous_variables(csv_path)
+
+    dataset = 'features.csv'
+    csv_path = os.path.join(csv_directory, dataset)
+    realize_logistic_regression(csv_path)
 
 
 if __name__ == '__main__':
