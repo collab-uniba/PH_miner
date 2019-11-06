@@ -11,6 +11,7 @@ import regex
 import gensim
 
 import numpy as np
+import random
 
 # Library used for checking day from datetime
 import calendar
@@ -1004,6 +1005,35 @@ def realize_logistic_regression(csv):
     df.to_csv(csv_path, sep=';', index=False)
 
 
+def analyze_makers_follow_up_on_comments(session, csv):
+    _entries = list()
+
+    # Read dataset and take post id where makers follow up on comments
+    dataset = pd.read_csv(csv, delimiter=';', usecols=['post_id', 'maker_follows_up_on_comments'])
+    post_id = np.array(dataset.loc[dataset['maker_follows_up_on_comments'] == 'Yes', 'post_id'])
+
+    # Select randomly 322 post id from those contained in the list post_id
+    post_id = set(post_id)
+    samples = random.sample(post_id, 322)
+    # samples.sort()
+
+    # Extract from database posts id that are in the list post_id with the corresponding url
+    for i in range(0, len(samples)):
+        post = session.query(Post.discussion_url).filter(Post.id == int(samples[i])).one()
+        entry = [samples[i], post.discussion_url]
+        _entries.append(entry)
+
+    return _entries
+
+
+def write_csv_file(outfile, _entries):
+    writer = CsvWriter(outfile)
+    header = ['post_id', 'url']
+    writer.writerow(header)
+    writer.writerows(_entries)
+    writer.close()
+
+
 def main():
     """ set up logging """
     now = datetime.datetime.now(timezone('US/Pacific')).strftime("%Y-%m-%d")
@@ -1017,6 +1047,7 @@ def main():
     csv_path = os.path.join(csv_directory, features_not_discretized)
     os.environ['FEATURES'] = os.path.abspath(csv_path)
 
+    """ Extract all features (Presentation, Reputation, Time, Affect and Linguistic) """
     entries = extract_all_features(session, logger)
     entries = clean_features(entries)
     write_all_features(os.environ['FEATURES'], entries)
@@ -1025,9 +1056,17 @@ def main():
 
     discretize_continuous_variables(csv_path)
 
+    """ Realize logistic regression on dataset containing the extracted features """
     dataset = 'features.csv'
     csv_path = os.path.join(csv_directory, dataset)
     realize_logistic_regression(csv_path)
+
+    """ Effect analysis on makers that follow up on comments """
+    csv_file = 'analysis_makers_follow_up_on_comments.csv'
+    csv_file_path = os.path.join(csv_directory, csv_file)
+    os.environ['ANALYSIS'] = os.path.abspath(csv_file_path)
+    entries = analyze_makers_follow_up_on_comments(session, csv_path)
+    write_csv_file(os.environ['ANALYSIS'], entries)
 
 
 if __name__ == '__main__':
