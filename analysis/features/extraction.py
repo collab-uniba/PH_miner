@@ -399,9 +399,10 @@ def __aggregate(_posts, _media, _comments, session, logger):
                     # check if the maker_id that follows up on the current comment is equal to the current maker_id
                     if _comments[index_comment][4] == maker_id:
                         maker_follows_up_on_comments = 1
-                    else:
-                        if _comments[index_comment][4] == hunter_id:
-                            hunter_follows_up_on_comments = 1
+
+                    # check if the hunter_id that follows up in the current comment is equal to the current hunter_id
+                    if _comments[index_comment][4] == hunter_id:
+                        hunter_follows_up_on_comments = 1
 
                     """ Extraction of maker sentiment based on his post comments written the day of launch """
                     if _comments[index_comment][4] == maker_id:
