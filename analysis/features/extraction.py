@@ -249,9 +249,9 @@ def setup_sentistrength_path(s):
     s.setSentiStrengthLanguageFolderPath(os.getcwd() + '\\affect_resources\\SentiStrength_Data\\')
 
 
-def __extract_maker_sentiment(sentiment, text):
-    maker_sentiment = sentiment.getSentiment(text, score='binary')
-    return maker_sentiment
+def __extract_sentiment(sentiment, text):
+    s = sentiment.getSentiment(text, score='binary')
+    return s
 
 
 def __aggregate(_posts, _media, _comments, session, logger):
@@ -292,8 +292,8 @@ def __aggregate(_posts, _media, _comments, session, logger):
             entry = entry + [p.description]
             if p.description:
                 """ Extraction of maker sentiment based on the description of his post """
-                sentiment_description = __extract_maker_sentiment(senti, p.description)
-                entry = entry + [sentiment_description[0][0], sentiment_description[0][1], '', '', '']
+                maker_description_sentiment = __extract_sentiment(senti, p.description)
+                entry = entry + [maker_description_sentiment[0][0], maker_description_sentiment[0][1], '', '', '']
 
                 # Text length
                 entry = entry + [len(p.description)]
@@ -375,7 +375,8 @@ def __aggregate(_posts, _media, _comments, session, logger):
             promo_codes = []
             maker_follows_up_on_comments = 0
             hunter_follows_up_on_comments = 0
-            comments = []
+            maker_comments = []
+            others_comments = []
             hunter_id = session.query(Hunts.hunter_id).filter(Hunts.post_id == p.id).one()[0]
             index_comment = 0
             while index_comment < len(_comments):
@@ -411,10 +412,22 @@ def __aggregate(_posts, _media, _comments, session, logger):
                         # cut the comments written days after the post was launched
                         if (p.created_at.year == comment_date.year) and (p.created_at.month == comment_date.month) and (
                                 p.created_at.day == comment_date.day):
-                            if not comments:
-                                comments = [_comments[index_comment][1]]
+                            if not maker_comments:
+                                maker_comments = [_comments[index_comment][1]]
                             else:
-                                comments = comments + [_comments[index_comment][1]]
+                                maker_comments = maker_comments + [_comments[index_comment][1]]
+
+                    """ Extraction of others users sentiment based on their post comments written the day of launch """
+                    if (_comments[index_comment][4] != maker_id) and (maker_id != hunter_id):
+                        # date of others comment written the day the post was launched
+                        comment_date = _comments[index_comment][2]
+                        # cut the comments written days after the post was launched
+                        if (p.created_at.year == comment_date.year) and (p.created_at.month == comment_date.month) and (
+                                p.created_at.day == comment_date.day):
+                            if not others_comments:
+                                others_comments = [_comments[index_comment][1]]
+                            else:
+                                others_comments = others_comments + [_comments[index_comment][1]]
 
                 index_comment = index_comment + 1
             if offers:
@@ -434,25 +447,31 @@ def __aggregate(_posts, _media, _comments, session, logger):
             hunter = session.query(User.id, User.name, User.twitter_username, User.website_url, User.followers_count,
                                    User.apps_made_count).filter(User.id == hunter_id).one()
             entry = entry + [hunter.id, hunter.name, hunter.twitter_username, hunter.website_url,
-                             hunter.followers_count, hunter.apps_made_count]
-
-            if hunter_follows_up_on_comments == 1:
-                entry = entry + ['Yes']
-            else:
-                entry = entry + ['No']
+                             hunter.followers_count, hunter.apps_made_count, hunter_follows_up_on_comments]
 
             # Maker reputation
-            entry = entry + [maker.id, maker.name, maker.twitter_username, maker.website_url, maker.followers_count]
+            entry = entry + [maker.id, maker.name, maker.twitter_username, maker.website_url, maker.followers_count,
+                             maker_follows_up_on_comments]
 
-            if maker_follows_up_on_comments == 1:
-                entry = entry + ['Yes']
-            else:
-                entry = entry + ['No']
+            # check if the hunter is also the maker and append the variable hunter_is_maker to the list entry
+            hunter_is_maker = 0
+            if hunter_id == maker_id:
+                hunter_is_maker = 1
+            entry = entry + [hunter_is_maker]
 
             # Append to the list the maker comment sentiment
-            if comments:
-                comment = '\n'.join(comments)
-                sentiment = __extract_maker_sentiment(senti, comment)
+            if maker_comments:
+                comment = '\n'.join(maker_comments)
+                sentiment = __extract_sentiment(senti, comment)
+            else:
+                comment = ''
+                sentiment = [[1, -1]]
+            entry = entry + [comment, sentiment[0][0], sentiment[0][1], '', '', '']
+
+            # Append to the list the others comment sentiment
+            if others_comments:
+                comment = '\n'.join(others_comments)
+                sentiment = __extract_sentiment(senti, comment)
             else:
                 comment = ''
                 sentiment = [[1, -1]]
@@ -498,28 +517,28 @@ def discretize_affect_feature(positive_sentiment, negative_sentiment):
 def clean_features(_entries):
     _cleaned_entries = list()
     for e in _entries:
-        # Insert Yes if the post is featured, No viceversa
+        # Insert Yes if the post is featured, No otherwise
         # 4 is the position in the list where the is_featured element is located
         is_featured = 'Yes'
         if (not e[4]) or (e[4] == 0):
             is_featured = 'No'
         e[4] = is_featured
 
-        # Insert Yes if the post was launched in the suggested time, No viceversa
+        # Insert Yes if the post was launched in the suggested time, No otherwise
         # 9 is the position in the list where the is_best_time_to_launch element is located
         best_posted_time = 'Yes'
         if not e[9]:
             best_posted_time = 'No'
         e[9] = best_posted_time
 
-        # Insert Yes if the post was launched in the suggested day, No viceversa
+        # Insert Yes if the post was launched in the suggested day, No otherwise
         # 10 is the position in the list where the is_best_day_to_launch element is located
         best_launched_day = 'Yes'
         if not e[10]:
             best_launched_day = 'No'
         e[10] = best_launched_day
 
-        # Insert Yes if the post was launched in weekend, No viceversa
+        # Insert Yes if the post was launched in weekend, No otherwise
         # 11 is the position in the list where the is_weekend element is located
         is_weekend = 'Yes'
         if not e[11]:
@@ -531,84 +550,119 @@ def clean_features(_entries):
         #
         # 13 is the position in the list where positive_description_sentiment element is located
         # 14 is the position in the list where negative_description_sentiment element is located
-        # 15 is the position in the list where discretized_positive_description_score is located
-        # 16 is the position in the list where discretized_negative_description_score is located
-        # 17 is the position in the list where discretized_neutral_description_score is located
+        # 15 is the position in the list where discretized_positive_description_score element is located
+        # 16 is the position in the list where discretized_negative_description_score element is located
+        # 17 is the position in the list where discretized_neutral_description_score element is located
         discretized_positive_score, discretized_negative_score, discretized_neutral_score = discretize_affect_feature(
             e[13], e[14])
         e[15] = discretized_positive_score
         e[16] = discretized_negative_score
         e[17] = discretized_neutral_score
 
-        # Insert Yes if the description post contains bullet points or explicit features, No viceversa
+        # Insert Yes if the description post contains bullet points or explicit features, No otherwise
         # 20 is the position in the list where the bullet_points_explicit_features element is located
         are_there_bullet_points_explicit_features = 'Yes'
         if not e[20]:
             are_there_bullet_points_explicit_features = 'No'
         e[20] = are_there_bullet_points_explicit_features
 
-        # Insert Yes if the description post contains emojis, No viceversa
+        # Insert Yes if the description post contains emojis, No otherwise
         # 21 is the position in the list where the emoji_in_description element is located
         are_there_emoji_in_description = 'Yes'
         if not e[21]:
             are_there_emoji_in_description = 'No'
         e[21] = are_there_emoji_in_description
 
-        # Insert Yes if the tagline post contains emojis, No viceversa
+        # Insert Yes if the tagline post contains emojis, No otherwise
         # 24 is the position in the list where the emoji_in_tagline element is located
         are_there_emoji_in_tagline = 'Yes'
         if not e[24]:
             are_there_emoji_in_tagline = 'No'
         e[24] = are_there_emoji_in_tagline
 
-        # Insert Yes if the post contains gif images, No viceversa
+        # Insert Yes if the post contains gif images, No otherwise
         # 27 is the position in the list where the are_there_gif_images element is located
         are_there_gif_images = 'Yes'
         if not e[27]:
             are_there_gif_images = 'No'
         e[27] = are_there_gif_images
 
-        # Insert Yes if the hunter that hunted the post has a twitter account, No viceversa
+        # Insert Yes if the hunter that hunted the post has a twitter account, No otherwise
         # 34 is the position in the list where the hunter_has_twitter element is located
         hunter_has_twitter = 'Yes'
         if not e[34]:
             hunter_has_twitter = 'No'
         e[34] = hunter_has_twitter
 
-        # Insert Yes if the hunter that hunted the post has a website, No viceversa
+        # Insert Yes if the hunter that hunted the post has a website, No otherwise
         # 35 is the position in the list where the hunter_has_website element is located
         hunter_has_website = 'Yes'
         if not e[35]:
             hunter_has_website = 'No'
         e[35] = hunter_has_website
 
-        # Insert Yes if the maker that launched the post has a twitter account, No viceversa
+        # Insert Yes if the hunter that hunted the post follows up on comments, No otherwise
+        # 38 is the position in the list where the hunter_follows_up_on_comments element is located
+        hunter_follows_up_on_comments = 'Yes'
+        if e[38] == 0:
+            hunter_follows_up_on_comments = 'No'
+        e[38] = hunter_follows_up_on_comments
+
+        # Insert Yes if the maker that launched the post has a twitter account, No otherwise
         # 41 is the position in the list where the maker_has_twitter element is located
         maker_has_twitter = 'Yes'
         if not e[41]:
             maker_has_twitter = 'No'
         e[41] = maker_has_twitter
 
-        # Insert Yes if the maker that launched the post has a website, No viceversa
+        # Insert Yes if the maker that launched the post has a website, No otherwise
         # 42 is the position in the list where the maker_has_website element is located
         maker_has_website = 'Yes'
         if not e[42]:
             maker_has_website = 'No'
         e[42] = maker_has_website
 
+        # Insert Yes if the maker that launched the post follows up on comments, No otherwise
+        # 44 is the position in the list where the maker_follows_up_on_comments element is located
+        maker_follows_up_on_comments = 'Yes'
+        if e[44] == 0:
+            maker_follows_up_on_comments = 'No'
+        e[44] = maker_follows_up_on_comments
+
+        # Insert Yes if the hunter that "hunted" the post corresponds to the maker, No otherwise
+        # 45 is the position in the list where the hunter_is_maker element is located
+        hunter_is_maker = 'Yes'
+        if e[45] == 0:
+            hunter_is_maker = 'No'
+        e[45] = hunter_is_maker
+
         # Discretize positive sentiment and negative sentiment to Positive, Negative and Neutral for maker sentiment
         # in comment
         #
-        # 46 is the position in the list where positive_comment_sentiment element is located
-        # 47 is the position in the list where negative_comment_sentiment element is located
-        # 48 is the position in the list where discretized_positive_comment_score is located
-        # 49 is the position in the list where discretized_negative_comment_score is located
-        # 50 is the position in the list where discretized_neutral_comment_score is located
+        # 47 is the position in the list where positive_comment_sentiment element is located
+        # 48 is the position in the list where negative_comment_sentiment element is located
+        # 49 is the position in the list where discretized_positive_comment_score element is located
+        # 50 is the position in the list where discretized_negative_comment_score element is located
+        # 51 is the position in the list where discretized_neutral_comment_score element is located
         discretized_positive_score, discretized_negative_score, discretized_neutral_score = discretize_affect_feature(
-            e[46], e[47])
-        e[48] = discretized_positive_score
-        e[49] = discretized_negative_score
-        e[50] = discretized_neutral_score
+            e[47], e[48])
+        e[49] = discretized_positive_score
+        e[50] = discretized_negative_score
+        e[51] = discretized_neutral_score
+
+        # Discretize positive sentiment and negative sentiment to Positive, Negative and Neutral for others users
+        # sentiment in comment
+        #
+        # 53 is the position in the list where others_positive_comment element is located
+        # 54 is the position in the list where others_negative_comment element is located
+        # 55 is the position in the list where discretized_others_positive_comment_score element is located
+        # 56 is the position in the list where discretized_others_negative_comment_score element is located
+        # 57 is the position in the list where discretized_others_neutral_comment_score element is located
+        discretized_positive_score, discretized_negative_score, discretized_neutral_score = discretize_affect_feature(
+            e[53], e[54])
+        e[55] = discretized_positive_score
+        e[56] = discretized_negative_score
+        e[57] = discretized_neutral_score
 
         _cleaned_entries.append(e)
     return _cleaned_entries
@@ -627,9 +681,11 @@ def write_all_features(outfile, _entries):
               'are_there_questions', 'hunter_id', 'hunter_name', 'hunter_has_twitter', 'hunter_has_website',
               'hunter_followers', 'hunter_apps_made', 'hunter_follows_up_on_comments', 'maker_id', 'maker_name',
               'maker_has_twitter', 'maker_has_website', 'maker_followers', 'maker_follows_up_on_comments',
-              'post_comment', 'positive_comment_sentiment', 'negative_comment_sentiment',
-              'discretized_positive_comment_score', 'discretized_negative_comment_score',
-              'discretized_neutral_comment_score']
+              'hunter_is_maker', 'maker_post_comment', 'maker_positive_comment', 'maker_negative_comment',
+              'discretized_maker_positive_comment_score', 'discretized_maker_negative_comment_score',
+              'discretized_maker_neutral_comment_score', 'others_post_comment', 'others_positive_comment',
+              'others_negative_comment', 'discretized_others_positive_comment_score',
+              'discretized_others_negative_comment_score', 'discretized_others_neutral_comment_score']
     writer.writerow(header)
     writer.writerows(_entries)
     writer.close()
@@ -910,7 +966,7 @@ def discretize_continuous_variables(csv):
                                                 include_lowest=True)
 
     # Topic discretization
-    topic = data_disc.iloc[:, 51:52]  # position where is located the column Topic
+    topic = data_disc.iloc[:, 58:59]  # position where is located the column Topic
     topic['topic'] = topic['topic'].map({0: 'web development', 1: 'creativity', 2: 'community'})
 
     # Changing continuous variables with discretized values for text length, sentence length, tagline length,
@@ -956,8 +1012,9 @@ def realize_logistic_regression(csv):
                                                       'hunter_followers', 'hunter_apps_made',
                                                       'hunter_follows_up_on_comments', 'maker_has_twitter',
                                                       'maker_has_website', 'maker_followers',
-                                                      'maker_follows_up_on_comments', 'positive_comment_sentiment',
-                                                      'negative_comment_sentiment', 'topic'])
+                                                      'maker_follows_up_on_comments', 'hunter_is_maker',
+                                                      'maker_positive_comment', 'maker_negative_comment',
+                                                      'others_positive_comment', 'others_negative_comment', 'topic'])
 
     # Set default variables for logistic regression
     mydata = pd.get_dummies(mydata, columns=['is_best_time_to_launch', 'is_best_day_to_launch', 'is_weekend',
@@ -966,7 +1023,7 @@ def realize_logistic_regression(csv):
                                              'are_there_gif_images', 'offers', 'promo_discount_codes',
                                              'are_there_questions', 'hunter_has_twitter', 'hunter_has_website',
                                              'hunter_follows_up_on_comments', 'maker_has_twitter', 'maker_has_website',
-                                             'maker_follows_up_on_comments'], drop_first=True)
+                                             'maker_follows_up_on_comments', 'hunter_is_maker'], drop_first=True)
     mydata = pd.get_dummies(mydata, columns=['text_description_length', 'sentence_length_in_the_description',
                                              'tagline_length', 'hunter_followers', 'hunter_apps_made',
                                              'maker_followers'])
@@ -977,7 +1034,7 @@ def realize_logistic_regression(csv):
     mydata = mydata.drop(['topic_web development'], axis=1)
 
     # Build logistic regression model
-    myformula = 'is_featured ~ version + tags_number + score + is_best_time_to_launch_Yes + is_best_day_to_launch_Yes + is_weekend_Yes + positive_description_sentiment + negative_description_sentiment + text_description_length_Medium + text_description_length_Long + sentence_length_in_the_description_Medium + sentence_length_in_the_description_Long + bullet_points_explicit_features_Yes + emoji_in_description_Yes + tagline_length_Medium + tagline_length_Long + emoji_in_tagline_Yes + are_there_video_Yes + are_there_tweetable_images_Yes + are_there_gif_images_Yes + number_of_gif + offers_Yes + promo_discount_codes_Yes + are_there_questions_Yes + hunter_has_twitter_Yes + hunter_has_website_Yes + hunter_followers_Low + hunter_followers_Medium + hunter_apps_made_Low + hunter_apps_made_Medium + hunter_follows_up_on_comments_Yes + maker_has_twitter_Yes + maker_has_website_Yes + maker_followers_Low + maker_followers_Medium + maker_follows_up_on_comments_Yes + positive_comment_sentiment + negative_comment_sentiment + topic_community + topic_creativity'
+    myformula = 'is_featured ~ version + tags_number + score + is_best_time_to_launch_Yes + is_best_day_to_launch_Yes + is_weekend_Yes + positive_description_sentiment + negative_description_sentiment + text_description_length_Medium + text_description_length_Long + sentence_length_in_the_description_Medium + sentence_length_in_the_description_Long + bullet_points_explicit_features_Yes + emoji_in_description_Yes + tagline_length_Medium + tagline_length_Long + emoji_in_tagline_Yes + are_there_video_Yes + are_there_tweetable_images_Yes + are_there_gif_images_Yes + number_of_gif + offers_Yes + promo_discount_codes_Yes + are_there_questions_Yes + hunter_has_twitter_Yes + hunter_has_website_Yes + hunter_followers_Low + hunter_followers_Medium + hunter_apps_made_Low + hunter_apps_made_Medium + hunter_follows_up_on_comments_Yes + maker_has_twitter_Yes + maker_has_website_Yes + maker_followers_Low + maker_followers_Medium + maker_follows_up_on_comments_Yes + hunter_is_maker_Yes + maker_positive_comment + maker_negative_comment + others_positive_comment + others_negative_comment + topic_community + topic_creativity'
     model = sm.GLM.from_formula(formula=myformula, data=mydata, family=sm.families.Binomial())
     results = model.fit()
     print(results.summary())
