@@ -11,7 +11,7 @@ import regex
 import gensim
 
 import numpy as np
-import random
+# import random
 
 # Library used for checking day from datetime
 import calendar
@@ -373,10 +373,11 @@ def __aggregate(_posts, _media, _comments, session, logger):
             offers = []
             questions = []
             promo_codes = []
-            maker_follows_up_on_comments = 0
+            # maker_follows_up_on_comments = 0
             hunter_follows_up_on_comments = 0
             maker_comments = []
             others_comments = []
+            comm_in_thread = []
             hunter_id = session.query(Hunts.hunter_id).filter(Hunts.post_id == p.id).one()[0]
             index_comment = 0
             while index_comment < len(_comments):
@@ -397,11 +398,15 @@ def __aggregate(_posts, _media, _comments, session, logger):
                     if promo_code:
                         promo_codes = promo_codes + promo_code
 
-                    # check if the maker_id that follows up on the current comment is equal to the current maker_id
-                    if _comments[index_comment][4] == maker_id:
-                        maker_follows_up_on_comments = 1
+                    # # check if the maker follows up on the current comment
+                    # if _comments[index_comment][4] == maker_id:
+                    #    maker_follows_up_on_comments = 1
 
-                    # check if the hunter_id that follows up in the current comment is equal to the current hunter_id
+                    # put comments in comm list (comment_id, comment_body, created_at, user_id)
+                    comm_in_thread.append([_comments[index_comment][0], _comments[index_comment][1],
+                                           _comments[index_comment][2], _comments[index_comment][4]])
+
+                    # check if the hunter follows up on the current comment
                     if _comments[index_comment][4] == hunter_id:
                         hunter_follows_up_on_comments = 1
 
@@ -443,6 +448,36 @@ def __aggregate(_posts, _media, _comments, session, logger):
             else:
                 entry = entry + ['No']
 
+            # check if the maker writes the first comment in the thread
+            maker_started_comment_thread = 0
+            if comm_in_thread:
+                if (p.created_at.year == comm_in_thread[0][2].year) and (
+                        p.created_at.month == comm_in_thread[0][2].month) and (
+                        p.created_at.day == comm_in_thread[0][2].day):
+                    if comm_in_thread[0][3] == maker_id:
+                        maker_started_comment_thread = 1
+
+            # calculate maker comment ratio ((number of maker comments / number of all comments)*100)
+            number_maker_comments = 0
+            number_others_comments = 0
+            if comm_in_thread:
+                for i in range(0, len(comm_in_thread)):
+                    if (p.created_at.year == comm_in_thread[i][2].year) and (
+                            p.created_at.month == comm_in_thread[i][2].month) and (
+                            p.created_at.day == comm_in_thread[i][2].day):
+                        if comm_in_thread[i][3] == maker_id:
+                            number_maker_comments = number_maker_comments + 1
+                        else:
+                            number_others_comments = number_others_comments + 1
+            thread_length = number_maker_comments + number_others_comments
+            try:
+                if maker_started_comment_thread == 1:
+                    maker_comment_ratio = (number_maker_comments/thread_length)*100
+                else:
+                    maker_comment_ratio = 0.0
+            except ZeroDivisionError:
+                maker_comment_ratio = 0.00
+
             # Hunter reputation
             hunter = session.query(User.id, User.name, User.twitter_username, User.website_url, User.followers_count,
                                    User.apps_made_count).filter(User.id == hunter_id).one()
@@ -451,7 +486,7 @@ def __aggregate(_posts, _media, _comments, session, logger):
 
             # Maker reputation
             entry = entry + [maker.id, maker.name, maker.twitter_username, maker.website_url, maker.followers_count,
-                             maker_follows_up_on_comments]
+                             maker_started_comment_thread, round(maker_comment_ratio, 2), thread_length]
 
             # check if the hunter is also the maker and append the variable hunter_is_maker to the list entry
             hunter_is_maker = 0
@@ -622,47 +657,47 @@ def clean_features(_entries):
             maker_has_website = 'No'
         e[42] = maker_has_website
 
-        # Insert Yes if the maker that launched the post follows up on comments, No otherwise
-        # 44 is the position in the list where the maker_follows_up_on_comments element is located
-        maker_follows_up_on_comments = 'Yes'
+        # Insert Yes if the maker that launched the post writes the first comment in the thread, No otherwise
+        # 44 is the position in the list where the maker_started_comment_thread element is located
+        maker_started_comment_thread = 'Yes'
         if e[44] == 0:
-            maker_follows_up_on_comments = 'No'
-        e[44] = maker_follows_up_on_comments
+            maker_started_comment_thread = 'No'
+        e[44] = maker_started_comment_thread
 
         # Insert Yes if the hunter that "hunted" the post corresponds to the maker, No otherwise
-        # 45 is the position in the list where the hunter_is_maker element is located
+        # 47 is the position in the list where the hunter_is_maker element is located
         hunter_is_maker = 'Yes'
-        if e[45] == 0:
+        if e[47] == 0:
             hunter_is_maker = 'No'
-        e[45] = hunter_is_maker
+        e[47] = hunter_is_maker
 
         # Discretize positive sentiment and negative sentiment to Positive, Negative and Neutral for maker sentiment
         # in comment
         #
-        # 47 is the position in the list where positive_comment_sentiment element is located
-        # 48 is the position in the list where negative_comment_sentiment element is located
-        # 49 is the position in the list where discretized_positive_comment_score element is located
-        # 50 is the position in the list where discretized_negative_comment_score element is located
-        # 51 is the position in the list where discretized_neutral_comment_score element is located
+        # 49 is the position in the list where positive_comment_sentiment element is located
+        # 50 is the position in the list where negative_comment_sentiment element is located
+        # 51 is the position in the list where discretized_positive_comment_score element is located
+        # 52 is the position in the list where discretized_negative_comment_score element is located
+        # 53 is the position in the list where discretized_neutral_comment_score element is located
         discretized_positive_score, discretized_negative_score, discretized_neutral_score = discretize_affect_feature(
-            e[47], e[48])
-        e[49] = discretized_positive_score
-        e[50] = discretized_negative_score
-        e[51] = discretized_neutral_score
+            e[49], e[50])
+        e[51] = discretized_positive_score
+        e[52] = discretized_negative_score
+        e[53] = discretized_neutral_score
 
         # Discretize positive sentiment and negative sentiment to Positive, Negative and Neutral for others users
         # sentiment in comment
         #
-        # 53 is the position in the list where others_positive_comment element is located
-        # 54 is the position in the list where others_negative_comment element is located
-        # 55 is the position in the list where discretized_others_positive_comment_score element is located
-        # 56 is the position in the list where discretized_others_negative_comment_score element is located
-        # 57 is the position in the list where discretized_others_neutral_comment_score element is located
+        # 55 is the position in the list where others_positive_comment element is located
+        # 56 is the position in the list where others_negative_comment element is located
+        # 57 is the position in the list where discretized_others_positive_comment_score element is located
+        # 58 is the position in the list where discretized_others_negative_comment_score element is located
+        # 59 is the position in the list where discretized_others_neutral_comment_score element is located
         discretized_positive_score, discretized_negative_score, discretized_neutral_score = discretize_affect_feature(
-            e[53], e[54])
-        e[55] = discretized_positive_score
-        e[56] = discretized_negative_score
-        e[57] = discretized_neutral_score
+            e[55], e[56])
+        e[57] = discretized_positive_score
+        e[58] = discretized_negative_score
+        e[59] = discretized_neutral_score
 
         _cleaned_entries.append(e)
     return _cleaned_entries
@@ -680,12 +715,13 @@ def write_all_features(outfile, _entries):
               'are_there_tweetable_images', 'are_there_gif_images', 'number_of_gif', 'offers', 'promo_discount_codes',
               'are_there_questions', 'hunter_id', 'hunter_name', 'hunter_has_twitter', 'hunter_has_website',
               'hunter_followers', 'hunter_apps_made', 'hunter_follows_up_on_comments', 'maker_id', 'maker_name',
-              'maker_has_twitter', 'maker_has_website', 'maker_followers', 'maker_follows_up_on_comments',
-              'hunter_is_maker', 'maker_post_comment', 'maker_positive_comment', 'maker_negative_comment',
-              'discretized_maker_positive_comment_score', 'discretized_maker_negative_comment_score',
-              'discretized_maker_neutral_comment_score', 'others_post_comment', 'others_positive_comment',
-              'others_negative_comment', 'discretized_others_positive_comment_score',
-              'discretized_others_negative_comment_score', 'discretized_others_neutral_comment_score']
+              'maker_has_twitter', 'maker_has_website', 'maker_followers', 'maker_started_comment_thread',
+              'maker_comment_ratio', 'thread_length', 'hunter_is_maker', 'maker_post_comment',
+              'maker_positive_comment', 'maker_negative_comment', 'discretized_maker_positive_comment_score',
+              'discretized_maker_negative_comment_score', 'discretized_maker_neutral_comment_score',
+              'others_post_comment', 'others_positive_comment', 'others_negative_comment',
+              'discretized_others_positive_comment_score', 'discretized_others_negative_comment_score',
+              'discretized_others_neutral_comment_score']
     writer.writerow(header)
     writer.writerows(_entries)
     writer.close()
@@ -966,7 +1002,7 @@ def discretize_continuous_variables(csv):
                                                 include_lowest=True)
 
     # Topic discretization
-    topic = data_disc.iloc[:, 58:59]  # position where is located the column Topic
+    topic = data_disc.iloc[:, 60:61]  # position where is located the column Topic
     topic['topic'] = topic['topic'].map({0: 'web development', 1: 'creativity', 2: 'community'})
 
     # Changing continuous variables with discretized values for text length, sentence length, tagline length,
@@ -1012,9 +1048,10 @@ def realize_logistic_regression(csv):
                                                       'hunter_followers', 'hunter_apps_made',
                                                       'hunter_follows_up_on_comments', 'maker_has_twitter',
                                                       'maker_has_website', 'maker_followers',
-                                                      'maker_follows_up_on_comments', 'hunter_is_maker',
-                                                      'maker_positive_comment', 'maker_negative_comment',
-                                                      'others_positive_comment', 'others_negative_comment', 'topic'])
+                                                      'maker_started_comment_thread', 'maker_comment_ratio',
+                                                      'thread_length', 'hunter_is_maker', 'maker_positive_comment',
+                                                      'maker_negative_comment', 'others_positive_comment',
+                                                      'others_negative_comment', 'topic'])
 
     # Set default variables for logistic regression
     mydata = pd.get_dummies(mydata, columns=['is_best_time_to_launch', 'is_best_day_to_launch', 'is_weekend',
@@ -1023,7 +1060,7 @@ def realize_logistic_regression(csv):
                                              'are_there_gif_images', 'offers', 'promo_discount_codes',
                                              'are_there_questions', 'hunter_has_twitter', 'hunter_has_website',
                                              'hunter_follows_up_on_comments', 'maker_has_twitter', 'maker_has_website',
-                                             'maker_follows_up_on_comments', 'hunter_is_maker'], drop_first=True)
+                                             'maker_started_comment_thread', 'hunter_is_maker'], drop_first=True)
     mydata = pd.get_dummies(mydata, columns=['text_description_length', 'sentence_length_in_the_description',
                                              'tagline_length', 'hunter_followers', 'hunter_apps_made',
                                              'maker_followers'])
@@ -1034,7 +1071,7 @@ def realize_logistic_regression(csv):
     mydata = mydata.drop(['topic_web development'], axis=1)
 
     # Build logistic regression model
-    myformula = 'is_featured ~ version + tags_number + score + is_best_time_to_launch_Yes + is_best_day_to_launch_Yes + is_weekend_Yes + positive_description_sentiment + negative_description_sentiment + text_description_length_Medium + text_description_length_Long + sentence_length_in_the_description_Medium + sentence_length_in_the_description_Long + bullet_points_explicit_features_Yes + emoji_in_description_Yes + tagline_length_Medium + tagline_length_Long + emoji_in_tagline_Yes + are_there_video_Yes + are_there_tweetable_images_Yes + are_there_gif_images_Yes + number_of_gif + offers_Yes + promo_discount_codes_Yes + are_there_questions_Yes + hunter_has_twitter_Yes + hunter_has_website_Yes + hunter_followers_Low + hunter_followers_Medium + hunter_apps_made_Low + hunter_apps_made_Medium + hunter_follows_up_on_comments_Yes + maker_has_twitter_Yes + maker_has_website_Yes + maker_followers_Low + maker_followers_Medium + maker_follows_up_on_comments_Yes + hunter_is_maker_Yes + maker_positive_comment + maker_negative_comment + others_positive_comment + others_negative_comment + topic_community + topic_creativity'
+    myformula = 'is_featured ~ version + tags_number + score + is_best_time_to_launch_Yes + is_best_day_to_launch_Yes + is_weekend_Yes + positive_description_sentiment + negative_description_sentiment + text_description_length_Medium + text_description_length_Long + sentence_length_in_the_description_Medium + sentence_length_in_the_description_Long + bullet_points_explicit_features_Yes + emoji_in_description_Yes + tagline_length_Medium + tagline_length_Long + emoji_in_tagline_Yes + are_there_video_Yes + are_there_tweetable_images_Yes + are_there_gif_images_Yes + number_of_gif + offers_Yes + promo_discount_codes_Yes + are_there_questions_Yes + hunter_has_twitter_Yes + hunter_has_website_Yes + hunter_followers_Low + hunter_followers_Medium + hunter_apps_made_Low + hunter_apps_made_Medium + hunter_follows_up_on_comments_Yes + maker_has_twitter_Yes + maker_has_website_Yes + maker_followers_Low + maker_followers_Medium + maker_started_comment_thread_Yes + maker_comment_ratio + thread_length + hunter_is_maker_Yes + maker_positive_comment + maker_negative_comment + others_positive_comment + others_negative_comment + topic_community + topic_creativity'
     model = sm.GLM.from_formula(formula=myformula, data=mydata, family=sm.families.Binomial())
     results = model.fit()
     print(results.summary())
@@ -1063,25 +1100,24 @@ def realize_logistic_regression(csv):
     df.to_csv(csv_path, sep=';', index=False)
 
 
-def analyze_makers_follow_up_on_comments(session, csv):
-    _entries = list()
-
-    # Read dataset and take post id where makers follow up on comments
-    dataset = pd.read_csv(csv, delimiter=';', usecols=['post_id', 'maker_follows_up_on_comments'])
-    post_id = np.array(dataset.loc[dataset['maker_follows_up_on_comments'] == 'Yes', 'post_id'])
-
-    # Select randomly 322 post id from those contained in the list post_id
-    post_id = set(post_id)
-    samples = random.sample(post_id, 322)
-    # samples.sort()
-
-    # Extract from database posts id that are in the list post_id with the corresponding url
-    for i in range(0, len(samples)):
-        post = session.query(Post.discussion_url).filter(Post.id == int(samples[i])).one()
-        entry = [samples[i], post.discussion_url]
-        _entries.append(entry)
-
-    return _entries
+# def analyze_makers_follow_up_on_comments(session, csv):
+#    _entries = list()
+#
+#    # Read dataset and take post id where makers follow up on comments
+#    dataset = pd.read_csv(csv, delimiter=';', usecols=['post_id', 'maker_follows_up_on_comments'])
+#    post_id = np.array(dataset.loc[dataset['maker_follows_up_on_comments'] == 'Yes', 'post_id'])
+#
+#    # Select randomly 322 post id from those contained in the list post_id
+#    post_id = set(post_id)
+#    samples = random.sample(post_id, 322)
+#
+#    # Extract from database posts id that are in the list post_id with the corresponding url
+#    for i in range(0, len(samples)):
+#        post = session.query(Post.discussion_url).filter(Post.id == int(samples[i])).one()
+#        entry = [samples[i], post.discussion_url]
+#        _entries.append(entry)
+#
+#    return _entries
 
 
 def write_csv_file(outfile, _entries):
@@ -1119,12 +1155,12 @@ def main():
     csv_path = os.path.join(csv_directory, dataset)
     realize_logistic_regression(csv_path)
 
-    """ Effect analysis on makers that follow up on comments """
-    csv_file = 'analysis_makers_follow_up_on_comments.csv'
-    csv_file_path = os.path.join(csv_directory, csv_file)
-    os.environ['ANALYSIS'] = os.path.abspath(csv_file_path)
-    entries = analyze_makers_follow_up_on_comments(session, csv_path)
-    write_csv_file(os.environ['ANALYSIS'], entries)
+    # """ Analyze makers that follow up on comments """
+    # csv_file = 'analysis_makers_follow_up_on_comments.csv'
+    # csv_file_path = os.path.join(csv_directory, csv_file)
+    # os.environ['ANALYSIS'] = os.path.abspath(csv_file_path)
+    # entries = analyze_makers_follow_up_on_comments(session, csv_path)
+    # write_csv_file(os.environ['ANALYSIS'], entries)
 
 
 if __name__ == '__main__':
