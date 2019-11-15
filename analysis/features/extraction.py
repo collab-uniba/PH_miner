@@ -1049,7 +1049,7 @@ def realize_logistic_regression(csv):
                                                       'hunter_follows_up_on_comments', 'maker_has_twitter',
                                                       'maker_has_website', 'maker_followers',
                                                       'maker_started_comment_thread', 'maker_comment_ratio',
-                                                      'thread_length', 'hunter_is_maker', 'maker_positive_comment',
+                                                      'hunter_is_maker', 'maker_positive_comment',
                                                       'maker_negative_comment', 'others_positive_comment',
                                                       'others_negative_comment', 'topic'])
 
@@ -1071,7 +1071,7 @@ def realize_logistic_regression(csv):
     mydata = mydata.drop(['topic_web development'], axis=1)
 
     # Build logistic regression model
-    myformula = 'is_featured ~ version + tags_number + score + is_best_time_to_launch_Yes + is_best_day_to_launch_Yes + is_weekend_Yes + positive_description_sentiment + negative_description_sentiment + text_description_length_Medium + text_description_length_Long + sentence_length_in_the_description_Medium + sentence_length_in_the_description_Long + bullet_points_explicit_features_Yes + emoji_in_description_Yes + tagline_length_Medium + tagline_length_Long + emoji_in_tagline_Yes + are_there_video_Yes + are_there_tweetable_images_Yes + are_there_gif_images_Yes + number_of_gif + offers_Yes + promo_discount_codes_Yes + are_there_questions_Yes + hunter_has_twitter_Yes + hunter_has_website_Yes + hunter_followers_Low + hunter_followers_Medium + hunter_apps_made_Low + hunter_apps_made_Medium + hunter_follows_up_on_comments_Yes + maker_has_twitter_Yes + maker_has_website_Yes + maker_followers_Low + maker_followers_Medium + maker_started_comment_thread_Yes + maker_comment_ratio + thread_length + hunter_is_maker_Yes + maker_positive_comment + maker_negative_comment + others_positive_comment + others_negative_comment + topic_community + topic_creativity'
+    myformula = 'is_featured ~ version + tags_number + score + is_best_time_to_launch_Yes + is_best_day_to_launch_Yes + is_weekend_Yes + positive_description_sentiment + negative_description_sentiment + text_description_length_Medium + text_description_length_Long + sentence_length_in_the_description_Medium + sentence_length_in_the_description_Long + bullet_points_explicit_features_Yes + emoji_in_description_Yes + tagline_length_Medium + tagline_length_Long + emoji_in_tagline_Yes + are_there_video_Yes + are_there_tweetable_images_Yes + are_there_gif_images_Yes + number_of_gif + offers_Yes + promo_discount_codes_Yes + are_there_questions_Yes + hunter_has_twitter_Yes + hunter_has_website_Yes + hunter_followers_Low + hunter_followers_Medium + hunter_apps_made_Low + hunter_apps_made_Medium + hunter_follows_up_on_comments_Yes + maker_has_twitter_Yes + maker_has_website_Yes + maker_followers_Low + maker_followers_Medium + maker_started_comment_thread_Yes + maker_comment_ratio + hunter_is_maker_Yes + maker_positive_comment + maker_negative_comment + others_positive_comment + others_negative_comment + topic_community + topic_creativity'
     model = sm.GLM.from_formula(formula=myformula, data=mydata, family=sm.families.Binomial())
     results = model.fit()
     print(results.summary().tables[0])
