@@ -10,6 +10,7 @@ import emoji
 import regex
 import gensim
 
+import math
 import numpy as np
 # import random
 
@@ -1037,8 +1038,10 @@ def realize_logistic_regression(csv):
     # Read csv file containing the dataset on which logistic regression will be performed
     mydata = pd.read_csv(csv, delimiter=';', usecols=['is_featured', 'version', 'tags_number', 'score',
                                                       'is_best_time_to_launch', 'is_best_day_to_launch',
-                                                      'is_weekend', 'positive_description_sentiment',
-                                                      'negative_description_sentiment', 'text_description_length',
+                                                      'is_weekend',
+                                                      'discretized_positive_description_score',
+                                                      'discretized_negative_description_score',
+                                                      'text_description_length',
                                                       'sentence_length_in_the_description',
                                                       'bullet_points_explicit_features', 'emoji_in_description',
                                                       'tagline_length', 'emoji_in_tagline', 'are_there_video',
@@ -1049,24 +1052,44 @@ def realize_logistic_regression(csv):
                                                       'hunter_follows_up_on_comments', 'maker_has_twitter',
                                                       'maker_has_website', 'maker_followers',
                                                       'maker_started_comment_thread', 'maker_comment_ratio',
-                                                      'hunter_is_maker', 'maker_positive_comment',
-                                                      'maker_negative_comment', 'others_positive_comment',
-                                                      'others_negative_comment', 'topic'])
+                                                      'thread_length', 'hunter_is_maker',
+                                                      'discretized_maker_positive_comment_score',
+                                                      'discretized_maker_negative_comment_score',
+                                                      'discretized_others_positive_comment_score',
+                                                      'discretized_others_negative_comment_score',
+                                                      'topic'])
+    mydata = mydata.rename(columns={'discretized_positive_description_score': 'positive_description_sentiment',
+                                    'discretized_negative_description_score': 'negative_description_sentiment',
+                                    'discretized_maker_positive_comment_score': 'maker_positive_comment',
+                                    'discretized_maker_negative_comment_score': 'maker_negative_comment',
+                                    'discretized_others_positive_comment_score': 'others_positive_comment',
+                                    'discretized_others_negative_comment_score': 'others_negative_comment'})
 
     # Set default variables for logistic regression
     mydata = pd.get_dummies(mydata, columns=['is_best_time_to_launch', 'is_best_day_to_launch', 'is_weekend',
+                                             'positive_description_sentiment', 'negative_description_sentiment',
                                              'bullet_points_explicit_features', 'emoji_in_description',
                                              'emoji_in_tagline', 'are_there_video', 'are_there_tweetable_images',
                                              'are_there_gif_images', 'offers', 'promo_discount_codes',
                                              'are_there_questions', 'hunter_has_twitter', 'hunter_has_website',
                                              'hunter_follows_up_on_comments', 'maker_has_twitter', 'maker_has_website',
-                                             'maker_started_comment_thread', 'hunter_is_maker'], drop_first=True)
+                                             'maker_started_comment_thread', 'hunter_is_maker',
+                                             'maker_positive_comment', 'maker_negative_comment',
+                                             'others_positive_comment', 'others_negative_comment'], drop_first=True)
+    mydata = mydata.rename(columns={'positive_description_sentiment_True': 'positive_description_sentiment',
+                                    'negative_description_sentiment_True': 'negative_description_sentiment',
+                                    'maker_positive_comment_True': 'maker_positive_comment',
+                                    'maker_negative_comment_True': 'maker_negative_comment',
+                                    'others_positive_comment_True': 'others_positive_comment',
+                                    'others_negative_comment_True': 'others_negative_comment'})
+
     mydata = pd.get_dummies(mydata, columns=['text_description_length', 'sentence_length_in_the_description',
                                              'tagline_length', 'hunter_followers', 'hunter_apps_made',
                                              'maker_followers'])
     mydata = mydata.drop(['text_description_length_Short', 'sentence_length_in_the_description_Short',
                           'tagline_length_Short', 'hunter_followers_High', 'hunter_apps_made_High',
                           'maker_followers_High'], axis=1)
+
     mydata = pd.get_dummies(mydata, columns=['topic'])
     mydata = mydata.drop(['topic_web development'], axis=1)
 
@@ -1075,6 +1098,13 @@ def realize_logistic_regression(csv):
     model = sm.GLM.from_formula(formula=myformula, data=mydata, family=sm.families.Binomial())
     results = model.fit()
     print(results.summary().tables[0])
+
+    # Goodness of fit: Nagelkerke' r squared
+    power = 2 / model.nobs
+    cox_and_snell_r_squared = 1 - math.pow((results.llnull / results.llf), power)
+    denominator = 1 - math.pow((-results.llnull), power)
+    nagelkerke_r_squared = cox_and_snell_r_squared / denominator
+    print("Nagelkerke' r squared: {}".format(round(nagelkerke_r_squared, 3)))
 
     # Note that the summary table is a list. The table at index 1 is the "core" table.
     # Additionally, read_html puts dataframe in a list, so we want index 0
@@ -1118,14 +1148,14 @@ def realize_logistic_regression(csv):
 #        _entries.append(entry)
 #
 #    return _entries
-
-
-def write_csv_file(outfile, _entries):
-    writer = CsvWriter(outfile)
-    header = ['post_id', 'url']
-    writer.writerow(header)
-    writer.writerows(_entries)
-    writer.close()
+#
+#
+# def write_csv_file(outfile, _entries):
+#    writer = CsvWriter(outfile)
+#    header = ['post_id', 'url']
+#    writer.writerow(header)
+#    writer.writerows(_entries)
+#    writer.close()
 
 
 def main():
