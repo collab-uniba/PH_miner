@@ -1,8 +1,0 @@
-wdir: analysis/experiments/dvc
-cmd: sh preprocess.sh
-deps:
-- path: temp.csv
-  md5: d27431ae2351af119626adbcfdf6f938
-- path: preprocess.sh
-  md5: fd244958ed3c6936498d53dff89f8605
-md5: 73c902c39f7ba36fdedda3021cdb4d97

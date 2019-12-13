@@ -1,5 +1,0 @@
-
-['remote "phdemoremote"']
-url = /Users/fabio/dvc-temp/phdemo/
-[core]
-remote = phdemoremote
