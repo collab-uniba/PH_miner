@@ -1,7 +1,8 @@
 # PH_miner
-A [ProductHunt.com](https://www.producthunt.com) miner in Python 3.
+A [ProductHunt.com](https://www.producthunt.com) miner in Python3.
 
 ## Installation
+Execute the following commands:
 ```bash
 $ git clone https://github.com/collab-uniba/PH_miner.git
 $ git submodule init
@@ -75,3 +76,6 @@ $ sudo ln -s /usr/lib/chromium-browser/chromedriver /usr/bin/chromedriver
   * [Selenium](https://www.seleniumhq.org) - A suite of tools for automating web browsers
   * [ChromeDriver](http://chromedriver.chromium.org) - Tool to connect to Chromium web browser
   * [Beautiful Soup 4](https://www.crummy.com/software/BeautifulSoup/) - HTML parser
+
+## License
+The project is licensed under the MIT license.
