@@ -47,7 +47,7 @@ more-itertools==8.0.2
 murmurhash==1.0.2
 mysqlclient==1.4.6
 nltk==3.6.4
-numpy==1.17.4
+numpy==1.22.0rc1
 orderedmultidict==1.0.1
 parsel==1.5.2
 passlib==1.7.3
