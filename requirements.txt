@@ -38,7 +38,7 @@ intervals==0.8.1
 ipaddr==2.2.0
 ipaddress==1.0.23
 jmespath==0.9.4
-joblib==0.14.1
+joblib==1.2.0
 jsonschema==3.2.0
 kiwisolver==1.1.0
 lxml==4.9.1
