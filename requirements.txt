@@ -31,7 +31,7 @@ funcsigs==1.0.2
 furl==2.1.0
 gensim==3.8.1
 hyperlink==19.0.0
-idna==2.8
+idna==3.7
 incremental==17.5.0
 infinity==1.4
 intervals==0.8.1
