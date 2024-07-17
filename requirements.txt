@@ -46,8 +46,8 @@ matplotlib==3.1.2
 more-itertools==8.0.2
 murmurhash==1.0.2
 mysqlclient==1.4.6
-nltk==3.6.6
-numpy==1.22.0
+nltk==3.8.1
+numpy==1.22.2
 orderedmultidict==1.0.1
 parsel==1.5.2
 passlib==1.7.3
@@ -98,3 +98,4 @@ w3lib==1.21.0
 wasabi==0.4.2
 yellowbrick==1.0.1
 zope.interface==4.7.1
+setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
